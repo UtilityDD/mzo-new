@@ -19,6 +19,14 @@ export const REPORT_CATALOG: ReportDefinition[] = [
     minRole: UserRole.CCC
   },
   {
+    id: 'REP_DOCKET_MONITORING',
+    name: 'Docket Call Monitoring',
+    description: 'Real-time tracking of consumer complaints and resolution status.',
+    category: 'Operations',
+    icon: 'fa-headset',
+    minRole: UserRole.CCC
+  },
+  {
     id: 'REP_AUDIT_LOG',
     name: 'System Audit Log',
     description: 'Track user access and critical system activities.',

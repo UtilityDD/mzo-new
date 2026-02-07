@@ -1,27 +1,28 @@
 
-import { User, UserRole, ReportData, PendingNSCData, AuditEntry, ConsumerData } from '../types';
+import { User, UserRole, ReportData, PendingNSCData, AuditEntry, ConsumerData, DocketData } from '../types';
 
 const USERS_SHEET_ID = '1rWw9wrbuAduKThCd4tRLzfpULWedyGmQNnHeAmUQSR4';
 const NSC_SHEET_ID = '1jP1fPkntRCuUL7YNRrcrvB-Mm_c-5etcMEPa_1nQm40';
 const CONSUMERS_SHEET_ID = '1_56xJru04Y_Hv4yybMZ79XUmNAajcF8OV-hSISUDR00';
+const DOCKET_SHEET_ID = '1FcCzii1tB66sbw9AXrOd-rW3i-IsZVjG4Hhb2Jtev5c';
 
 // Web App URL for writing data back to Google Sheets
 const LOGS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbz_Placeholder_URL/exec';
 
-const getExportUrl = (sheetId: string, gid: string = '0') => 
+const getExportUrl = (sheetId: string, gid: string = '0') =>
   `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
 
 const parseCSV = (csv: string): any[] => {
   if (!csv) return [];
   const lines = csv.split(/\r?\n/).filter(line => line.trim().length > 0);
   if (lines.length === 0) return [];
-  
+
   const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-  
+
   return lines.slice(1).map(line => {
     const values = (line.match(/(".*?"|[^,]+|(?<=,)(?=,)|(?<=^)(?=,)|(?<=,)(?=$))/g) || [])
       .map(v => v.trim().replace(/^"|"$/g, ''));
-    
+
     const obj: any = {};
     headers.forEach((header, i) => {
       obj[header] = values[i] || '';
@@ -32,7 +33,7 @@ const parseCSV = (csv: string): any[] => {
 
 const getValue = (row: any, key: string) => {
   const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const actualKey = Object.keys(row).find(k => 
+  const actualKey = Object.keys(row).find(k =>
     k.toLowerCase().replace(/[^a-z0-9]/g, '') === normalizedKey
   );
   return actualKey ? row[actualKey] : undefined;
@@ -47,7 +48,7 @@ export const fetchOfficeMapping = async (): Promise<Record<string, string>> => {
     if (!response.ok) return {};
     const csvData = await response.text();
     const rawData = parseCSV(csvData);
-    
+
     const map: Record<string, string> = {};
     rawData.forEach(row => {
       const name = getValue(row, 'office_name') || getValue(row, 'office');
@@ -81,11 +82,11 @@ export const fetchUsersFromSheet = async (): Promise<User[]> => {
     return rawData.map(row => {
       const rawIsActive = getValue(row, 'is_active');
       const isActive = (
-        rawIsActive === undefined || 
-        rawIsActive === '' || 
-        rawIsActive === 'TRUE' || 
-        rawIsActive === 'true' || 
-        rawIsActive === '1' || 
+        rawIsActive === undefined ||
+        rawIsActive === '' ||
+        rawIsActive === 'TRUE' ||
+        rawIsActive === 'true' ||
+        rawIsActive === '1' ||
         rawIsActive === 'Y'
       );
 
@@ -96,7 +97,7 @@ export const fetchUsersFromSheet = async (): Promise<User[]> => {
         mobile_number: getValue(row, 'mobile_number') || 'N/A',
         designation: getValue(row, 'designation') || 'Staff',
         role: (getValue(row, 'role') as UserRole) || UserRole.CCC,
-        office_name: getValue(row, 'office_name') || getValue(row, 'office'), 
+        office_name: getValue(row, 'office_name') || getValue(row, 'office'),
         zone_code: getValue(row, 'zone_code'),
         region_code: getValue(row, 'region_code'),
         division_code: getValue(row, 'division_code'),
@@ -134,7 +135,7 @@ export const logAudit = async (entry: Partial<AuditEntry>) => {
 
 export const fetchAuditLogsFromSheet = async (): Promise<AuditEntry[]> => {
   try {
-    const response = await fetch(getExportUrl(USERS_SHEET_ID, '2')); 
+    const response = await fetch(getExportUrl(USERS_SHEET_ID, '2'));
     if (!response.ok) return [];
     const csvData = await response.text();
     const rawData = parseCSV(csvData);
@@ -228,7 +229,7 @@ export const fetchConsumersFromSheet = async (): Promise<ConsumerData[]> => {
 
 export const fetchReportsFromSheet = async (): Promise<ReportData[]> => {
   try {
-    const response = await fetch(getExportUrl(USERS_SHEET_ID, '1')); 
+    const response = await fetch(getExportUrl(USERS_SHEET_ID, '1'));
     if (!response.ok) return [];
     const csvData = await response.text();
     const rawData = parseCSV(csvData);
@@ -246,6 +247,34 @@ export const fetchReportsFromSheet = async (): Promise<ReportData[]> => {
     }));
   } catch (error) {
     console.error('Error fetching reports:', error);
+    return [];
+  }
+};
+
+export const fetchDocketDataFromSheet = async (): Promise<DocketData[]> => {
+  try {
+    const response = await fetch(getExportUrl(DOCKET_SHEET_ID, '0'));
+    if (!response.ok) throw new Error('Failed to fetch Docket sheet');
+    const csvData = await response.text();
+    const rawData = parseCSV(csvData);
+
+    return rawData.map(row => ({
+      date: getValue(row, 'date'),
+      zone_code: getValue(row, 'zone_code'),
+      region_code: getValue(row, 'region_code'),
+      division_code: getValue(row, 'division_code'),
+      ccc_code: getValue(row, 'ccc_code'),
+      doc_no: getValue(row, 'doc_no'),
+      con_id: getValue(row, 'con_id'),
+      PARTY_NAME: getValue(row, 'PARTY_NAME'),
+      Mob_No: getValue(row, 'Mob_No'),
+      addr: getValue(row, 'addr'),
+      prob_type: getValue(row, 'prob_type'),
+      DESCRIPTION: getValue(row, 'DESCRIPTION'),
+      doc_crn_dt: getValue(row, 'doc_crn_dt')
+    }));
+  } catch (error) {
+    console.error('Error fetching Docket Data:', error);
     return [];
   }
 };

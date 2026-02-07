@@ -1,7 +1,7 @@
 
-import { ReportData, User, UserRole, HierarchyFilter, PendingNSCData, ConsumerData } from '../types';
+import { ReportData, User, UserRole, HierarchyFilter, PendingNSCData, ConsumerData, DocketData } from '../types';
 import { MOCK_REPORT_DATA } from '../constants';
-import { fetchReportsFromSheet, fetchPendingNSCFromSheet, fetchConsumersFromSheet } from './googleSheetsService';
+import { fetchReportsFromSheet, fetchPendingNSCFromSheet, fetchConsumersFromSheet, fetchDocketDataFromSheet } from './googleSheetsService';
 
 /**
  * Enforces Mandatory Hierarchy Logic
@@ -21,7 +21,7 @@ const applyHierarchyRestriction = (row: any, user: User) => {
 
 export const fetchNSCData = async (user: User, filters: HierarchyFilter): Promise<PendingNSCData[]> => {
   const allData = await fetchPendingNSCFromSheet();
-  
+
   return allData.filter(row => {
     // 1. Mandatory Hierarchy Enforcement
     if (!applyHierarchyRestriction(row, user)) return false;
@@ -40,9 +40,9 @@ export const fetchNSCData = async (user: User, filters: HierarchyFilter): Promis
     // 4. Search
     if (filters.searchQuery) {
       const q = filters.searchQuery.toLowerCase();
-      const match = 
-        row.APPL_NO.toLowerCase().includes(q) || 
-        row.NAME.toLowerCase().includes(q) || 
+      const match =
+        row.APPL_NO.toLowerCase().includes(q) ||
+        row.NAME.toLowerCase().includes(q) ||
         row.PHONE_NO.toLowerCase().includes(q);
       if (!match) return false;
     }
@@ -53,19 +53,19 @@ export const fetchNSCData = async (user: User, filters: HierarchyFilter): Promis
 
 export const fetchConsumerData = async (user: User, filters: HierarchyFilter): Promise<ConsumerData[]> => {
   const allData = await fetchConsumersFromSheet();
-  
+
   return allData.filter(row => {
     // Note: Consumers sheet doesn't have full hierarchy codes, usually only CCC
     if (user.role === UserRole.CCC && row.ccc_code !== user.ccc_code) return false;
-    
+
     // UI Hierarchy Filters
     if (filters.ccc && row.ccc_code !== filters.ccc) return false;
-    
+
     // Search
     if (filters.searchQuery) {
       const q = filters.searchQuery.toLowerCase();
-      const match = 
-        row.CATEGORY.toLowerCase().includes(q) || 
+      const match =
+        row.CATEGORY.toLowerCase().includes(q) ||
         row.CONN_STAT.toLowerCase().includes(q);
       if (!match) return false;
     }
@@ -85,6 +85,51 @@ export const calculateConsumerKPIs = (data: ConsumerData[]) => {
     { label: 'Total Load', value: `${totalLoad.toLocaleString()} KW`, trend: 0, icon: 'fa-bolt', color: 'bg-orange-500' },
     { label: 'SD (Lakh)', value: `₹${totalSD.toFixed(2)}`, trend: 0, icon: 'fa-vault', color: 'bg-emerald-500' },
     { label: 'OSD (Lakh)', value: `₹${totalOSD.toFixed(2)}`, trend: 0, icon: 'fa-triangle-exclamation', color: 'bg-rose-500' }
+  ];
+};
+
+export const fetchDocketData = async (user: User, filters: HierarchyFilter): Promise<DocketData[]> => {
+  const allData = await fetchDocketDataFromSheet();
+
+  return allData.filter(row => {
+    if (!applyHierarchyRestriction(row, user)) return false;
+
+    if (filters.zone && row.zone_code !== filters.zone) return false;
+    if (filters.region && row.region_code !== filters.region) return false;
+    if (filters.division && row.division_code !== filters.division) return false;
+    if (filters.ccc && row.ccc_code !== filters.ccc) return false;
+
+    if (filters.searchQuery) {
+      const q = filters.searchQuery.toLowerCase();
+      const match =
+        row.doc_no.toLowerCase().includes(q) ||
+        row.PARTY_NAME.toLowerCase().includes(q) ||
+        row.con_id.toLowerCase().includes(q);
+      if (!match) return false;
+    }
+
+    return true;
+  });
+};
+
+export const calculateDocketKPIs = (data: DocketData[]) => {
+  const totalDockets = data.length;
+  const technicalComplaints = data.filter(d =>
+    d.prob_type.toLowerCase().includes('fuse') ||
+    d.prob_type.toLowerCase().includes('transformer') ||
+    d.prob_type.toLowerCase().includes('breakdown')
+  ).length;
+
+  const billingComplaints = data.filter(d =>
+    d.prob_type.toLowerCase().includes('bill') ||
+    d.prob_type.toLowerCase().includes('payment')
+  ).length;
+
+  return [
+    { label: 'Total Dockets', value: totalDockets.toLocaleString(), trend: 0, icon: 'fa-ticket', color: 'bg-indigo-600' },
+    { label: 'Technical', value: technicalComplaints.toLocaleString(), trend: 0, icon: 'fa-screwdriver-wrench', color: 'bg-rose-600' },
+    { label: 'Billing', value: billingComplaints.toLocaleString(), trend: 0, icon: 'fa-file-invoice-dollar', color: 'bg-amber-600' },
+    { label: 'Others', value: (totalDockets - technicalComplaints - billingComplaints).toLocaleString(), trend: 0, icon: 'fa-circle-info', color: 'bg-slate-600' }
   ];
 };
 

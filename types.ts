@@ -103,6 +103,22 @@ export interface ConsumerData {
   OSD_LAKH: number;
 }
 
+export interface DocketData {
+  date: string;
+  zone_code: string;
+  region_code: string;
+  division_code: string;
+  ccc_code: string;
+  doc_no: string;
+  con_id: string;
+  PARTY_NAME: string;
+  Mob_No: string;
+  addr: string;
+  prob_type: string;
+  DESCRIPTION: string;
+  doc_crn_dt: string;
+}
+
 export interface HierarchyFilter {
   zone?: string;
   region?: string;

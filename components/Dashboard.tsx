@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, ReportData, HierarchyFilter, KPIData } from '../types';
-import { fetchFilteredData, calculateKPIs } from '../services/dataService';
+import { User, ReportData, HierarchyFilter, KPIData, DocketData } from '../types';
+import { fetchFilteredData, calculateKPIs, fetchDocketData } from '../services/dataService';
 import { getReportInsights } from '../services/geminiService';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area
@@ -14,6 +14,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [data, setData] = useState<ReportData[]>([]);
+  const [dockets, setDockets] = useState<number>(0);
   const [kpis, setKpis] = useState<KPIData[]>([]);
   const [insights, setInsights] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,12 +25,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     const loadData = async () => {
       setLoading(true);
       try {
-        const filtered = await fetchFilteredData(user, activeFilters);
-        setData(filtered);
-        setKpis(calculateKPIs(filtered));
+        const [filtered, docketList] = await Promise.all([
+          fetchFilteredData(user, activeFilters),
+          fetchDocketData(user, activeFilters)
+        ]);
 
-        // Fetch AI Insights
-        const summary = await getReportInsights(filtered, user);
+        setData(filtered);
+        setDockets(docketList.length);
+
+        const baseKpis = calculateKPIs(filtered);
+        // Add Docket KPI
+        baseKpis.push({
+          label: 'Open Dockets',
+          value: docketList.length.toLocaleString(),
+          trend: 0,
+          icon: 'fa-ticket-simple',
+          color: 'bg-indigo-600'
+        });
+        setKpis(baseKpis);
+
+        // Fetch AI Insights with extra context
+        const summary = await getReportInsights(filtered, user, docketList);
         setInsights(summary);
       } catch (error) {
         console.error("Dashboard Load Error:", error);
