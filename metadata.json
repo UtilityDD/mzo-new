@@ -1,0 +1,8 @@
+
+{
+  "name": "MZO Dashboard",
+  "description": "An Android-first, mobile-optimized data visualization platform designed for hierarchical organizational structures, featuring Google Sheets-based authentication and secure multi-level reporting.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
