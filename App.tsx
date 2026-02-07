@@ -12,7 +12,7 @@ import { fetchUsersFromSheet, logAudit } from './services/googleSheetsService';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<'reports' | 'profile'>('reports');
+  const [activeTab, setActiveTab] = useState<'home' | 'reports' | 'profile'>('home');
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
 
   const [loginForm, setLoginForm] = useState({ id: 'dd', pass: '12345' });
@@ -150,6 +150,8 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col pb-20">
       <main className="flex-1 overflow-y-auto">
 
+        {activeTab === 'home' && <Dashboard user={user} />}
+
         {activeTab === 'reports' && (
           selectedReportId ? (
             <div className="relative h-full">
@@ -171,54 +173,71 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'profile' && (
-          <div className="p-6 space-y-6 max-w-lg mx-auto">
-            <div className="bg-white p-8 rounded-[40px] android-shadow text-center space-y-4">
-              <div className="w-24 h-24 bg-gray-100 rounded-full mx-auto flex items-center justify-center text-4xl text-gray-400 border-4 border-white android-shadow">
-                <i className="fa-solid fa-user-tie"></i>
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">{user.full_name}</h2>
-                <p className="text-sm text-blue-600 font-semibold">{user.designation}</p>
+          <div className="p-6 space-y-6 max-w-lg mx-auto fade-in">
+            <div className="glass-card p-8 rounded-[40px] text-center space-y-5 premium-shadow">
+              <div className="relative inline-block">
+                <div className="w-24 h-24 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full mx-auto flex items-center justify-center text-4xl text-white border-4 border-white premium-shadow">
+                  <i className="fa-solid fa-user-tie"></i>
+                </div>
+                <div className="absolute -right-1 bottom-1 w-7 h-7 bg-emerald-500 border-4 border-white rounded-full"></div>
               </div>
 
-              <div className="flex items-center justify-center gap-2 text-emerald-600 font-bold text-[10px] uppercase">
+              <div>
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight">{user.full_name}</h2>
+                <p className="text-xs text-blue-600 font-extrabold uppercase tracking-widest mt-1">{user.designation}</p>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 text-emerald-600 font-extrabold text-[10px] uppercase tracking-widest py-2 bg-emerald-50/50 rounded-full w-fit mx-auto px-4 border border-emerald-100/50">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                 Live Session Verified
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-left pt-2">
-                <div className="bg-gray-50 p-3 rounded-2xl">
-                  <p className="text-[10px] text-gray-400 uppercase font-bold">Role</p>
+              <div className="grid grid-cols-2 gap-3 text-left pt-4">
+                <div className="bg-gray-50/50 p-4 rounded-[24px] border border-gray-100">
+                  <p className="text-[9px] text-gray-400 uppercase font-extrabold tracking-widest mb-1.5">Your Role</p>
                   <p className="text-sm font-bold text-gray-700">{user.role}</p>
                 </div>
-                <div className="bg-gray-50 p-3 rounded-2xl">
-                  <p className="text-[10px] text-gray-400 uppercase font-bold">System ID</p>
-                  <p className="text-sm font-bold text-gray-700">{user.user_id}</p>
+                <div className="bg-gray-50/50 p-4 rounded-[24px] border border-gray-100">
+                  <p className="text-[9px] text-gray-400 uppercase font-extrabold tracking-widest mb-1.5">System ID</p>
+                  <p className="text-sm font-bold text-gray-700 tracking-tight">{user.user_id}</p>
                 </div>
               </div>
 
               <button
                 onClick={logout}
-                className="w-full mt-6 py-4 rounded-2xl bg-gray-100 text-rose-600 font-bold active:bg-rose-50 transition-colors"
+                className="w-full mt-6 py-4 rounded-2xl bg-rose-50 text-rose-600 font-extrabold text-sm uppercase tracking-widest active:bg-rose-100 transition-all border border-rose-100"
               >
-                Sign Out
+                End Session
               </button>
             </div>
+
+            <p className="text-center text-[9px] font-extrabold text-gray-300 uppercase tracking-[0.3em]">
+              MZO Intelligence &copy; 2025
+            </p>
           </div>
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-100 px-8 py-3 safe-area-bottom flex justify-between items-center z-40">
+      <nav className="fixed bottom-0 left-0 right-0 glass border-t border-gray-100 px-8 py-3 safe-area-bottom flex justify-between items-center z-40">
+        <button
+          onClick={() => { setActiveTab('home'); setSelectedReportId(null); }}
+          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'home' ? 'text-blue-600 scale-110' : 'text-gray-400'}`}
+        >
+          <div className={`p-2 rounded-2xl ${activeTab === 'home' ? 'bg-blue-50' : ''}`}>
+            <i className="fa-solid fa-house-chimney text-lg"></i>
+          </div>
+          <span className="text-[10px] font-bold">Home</span>
+        </button>
+
         <button
           onClick={() => { setActiveTab('reports'); setSelectedReportId(null); }}
           className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'reports' ? 'text-blue-600 scale-110' : 'text-gray-400'}`}
         >
           <div className={`p-2 rounded-2xl ${activeTab === 'reports' ? 'bg-blue-50' : ''}`}>
-            <i className="fa-solid fa-grid-2 text-lg"></i>
+            <i className="fa-solid fa-chart-pie text-lg"></i>
           </div>
           <span className="text-[10px] font-bold">Reports</span>
         </button>
-
 
         <button
           onClick={() => { setActiveTab('profile'); setSelectedReportId(null); }}

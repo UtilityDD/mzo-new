@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User, ReportData, HierarchyFilter, KPIData } from '../types';
 import { fetchFilteredData, calculateKPIs } from '../services/dataService';
 import { getReportInsights } from '../services/geminiService';
-import { 
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area
 } from 'recharts';
 import FilterPanel from './FilterPanel';
@@ -23,14 +23,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      const filtered = await fetchFilteredData(user, activeFilters);
-      setData(filtered);
-      setKpis(calculateKPIs(filtered));
-      setLoading(false);
-      
-      // calculateKPIs
-      setKpis(calculateKPIs(filtered));
-      setLoading(false);
+      try {
+        const filtered = await fetchFilteredData(user, activeFilters);
+        setData(filtered);
+        setKpis(calculateKPIs(filtered));
+
+        // Fetch AI Insights
+        const summary = await getReportInsights(filtered, user);
+        setInsights(summary);
+      } catch (error) {
+        console.error("Dashboard Load Error:", error);
+      } finally {
+        setLoading(false);
+      }
     };
     loadData();
   }, [user, activeFilters]);
@@ -46,8 +51,23 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     return acc;
   }, []).sort((a, b) => a.date.localeCompare(b.date)).slice(-7);
 
+  if (loading && data.length === 0) {
+    return (
+      <div className="pb-24 pt-4 px-4 space-y-6 max-w-lg mx-auto md:max-w-4xl">
+        <div className="h-8 w-48 skeleton rounded-lg"></div>
+        <div className="flex gap-4 overflow-x-auto pb-2">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="min-w-[160px] h-32 skeleton rounded-2xl flex-1"></div>
+          ))}
+        </div>
+        <div className="h-64 w-full skeleton rounded-3xl"></div>
+        <div className="h-48 w-full skeleton rounded-3xl"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="pb-24 pt-4 px-4 space-y-6 max-w-lg mx-auto md:max-w-4xl">
+    <div className="pb-24 pt-4 px-4 space-y-6 max-w-lg mx-auto md:max-w-4xl fade-in">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -56,13 +76,32 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             {user.role}: {user.full_name}
           </p>
         </div>
-        <button 
+        <button
           onClick={() => setIsFilterOpen(true)}
           className="w-10 h-10 rounded-full bg-white android-shadow flex items-center justify-center text-blue-600 hover:bg-blue-50 transition-colors"
         >
           <i className="fa-solid fa-sliders"></i>
         </button>
       </div>
+
+      {/* AI Insights Card */}
+      {insights && (
+        <div className="bg-gradient-to-br from-indigo-600 to-blue-600 p-6 rounded-[32px] text-white premium-shadow fade-in">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md">
+              <i className="fa-solid fa-sparkles text-xs"></i>
+            </div>
+            <h4 className="font-extrabold text-sm uppercase tracking-widest">AI Intelligence</h4>
+          </div>
+          <div className="text-sm font-medium leading-relaxed opacity-90 whitespace-pre-line">
+            {insights}
+          </div>
+          <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest opacity-60">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
+            Real-time Analysis Complete
+          </div>
+        </div>
+      )}
 
       {/* KPI Scroll View (Mobile Optimized) */}
       <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory hide-scrollbar">
@@ -82,7 +121,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         ))}
       </div>
 
-
       {/* Charts Section */}
       <div className="space-y-4">
         <div className="bg-white p-5 rounded-3xl android-shadow border border-gray-100">
@@ -95,20 +133,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis 
-                  dataKey="date" 
-                  axisLine={false} 
-                  tickLine={false} 
+                <XAxis
+                  dataKey="date"
+                  axisLine={false}
+                  tickLine={false}
                   tick={{ fontSize: 10, fill: '#9ca3af' }}
                   tickFormatter={(val) => val.split('-').slice(1).join('/')}
                 />
                 <YAxis hide />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                 />
                 <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
@@ -123,16 +161,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis 
-                  dataKey="date" 
-                  axisLine={false} 
-                  tickLine={false} 
+                <XAxis
+                  dataKey="date"
+                  axisLine={false}
+                  tickLine={false}
                   tick={{ fontSize: 10, fill: '#9ca3af' }}
                   tickFormatter={(val) => val.split('-').slice(1).join('/')}
                 />
                 <YAxis hide />
-                <Tooltip 
-                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                <Tooltip
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                 />
                 <Bar dataKey="orders" fill="#10b981" radius={[6, 6, 0, 0]} />
               </BarChart>
@@ -141,10 +179,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         </div>
       </div>
 
-      <FilterPanel 
-        isOpen={isFilterOpen} 
-        onClose={() => setIsFilterOpen(false)} 
-        user={user} 
+      <FilterPanel
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        user={user}
         onFilterChange={setActiveFilters}
       />
     </div>
