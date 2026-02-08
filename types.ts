@@ -82,8 +82,13 @@ export interface PendingNSCData {
   DelayInWO: number;
   DelayInSC: number;
   DelayInQtn: number;
+  DelaySerial?: number;
   SCN_STATUS: string;
+  WO_ISSUED?: string;
   INSPECTION_COMMENT?: string;
+  SUPP_OFFLOAD_WATTS?: number;
+  APPLIED_PHASE?: string;
+  NO_OF_POLES?: number;
 }
 
 export interface ConsumerData {
@@ -137,10 +142,18 @@ export interface HierarchyFilter {
   division?: string;
   ccc?: string;
   dateRange?: { start: string; end: string };
-  delayRange?: string;
-  poleNonPole?: string;
-  applicantType?: string;
+  delayRange?: string[];
+  poleNonPole?: string[];
+  applicantType?: string[];
   searchQuery?: string;
+  connClass?: string[];
+  woIssued?: string[];
+  isDuareSarkar?: string[];
+  isPortalAppl?: string[];
+  divnName?: string[];
+  suppOffloadWatts?: string[];
+  appliedPhase?: string[];
+  noOfPoles?: string[];
 }
 
 export interface KPIData {

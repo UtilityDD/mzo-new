@@ -10,7 +10,7 @@ import ConsumersReport from './components/ConsumersReport';
 import ReportsList from './components/ReportCatalog';
 import DocketReport from './components/DocketReport';
 import CollectionReport from './components/CollectionReport';
-import { fetchUsersFromSheet, logAudit } from './services/googleSheetsService';
+import { fetchUsersFromSheet, logAudit, performFullBackgroundSync } from './services/googleSheetsService';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -20,6 +20,17 @@ const App: React.FC = () => {
   const [loginForm, setLoginForm] = useState({ id: 'dd', pass: '12345' });
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    const handleDataUpdate = (e: any) => {
+      console.log('[App] Data updated in background:', e.detail.cacheKey);
+      // You could force a re-render here if needed, 
+      // but most components fetch on mount or have their own logic.
+    };
+
+    window.addEventListener('mzo-data-updated', handleDataUpdate);
+    return () => window.removeEventListener('mzo-data-updated', handleDataUpdate);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +59,9 @@ const App: React.FC = () => {
 
         setUser(foundUser);
         setActiveTab('reports');
+
+        // Trigger background sync silently
+        performFullBackgroundSync();
       } else {
         const idMatch = userList.find(u => String(u.user_id).toLowerCase() === String(loginForm.id).toLowerCase());
 

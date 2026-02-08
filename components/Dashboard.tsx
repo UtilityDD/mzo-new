@@ -88,8 +88,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Executive Summary</h1>
-          <p className="text-sm text-gray-500 uppercase font-semibold tracking-wider">
+          <p className="text-sm text-gray-500 uppercase font-semibold tracking-wider flex items-center gap-2">
             {user.role}: {user.full_name}
+            {data.length > 0 && data[0].date && (
+              <span className="text-[9px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200 ml-1">
+                Updated: {data[0].date}
+              </span>
+            )}
           </p>
         </div>
         <button

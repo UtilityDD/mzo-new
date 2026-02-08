@@ -33,9 +33,17 @@ export const fetchNSCData = async (user: User, filters: HierarchyFilter): Promis
     if (filters.ccc && row.ccc_code !== filters.ccc) return false;
 
     // 3. NSC Specific Filters
-    if (filters.delayRange && row.DelayRange !== filters.delayRange) return false;
-    if (filters.poleNonPole && row.PoleNonPole !== filters.poleNonPole) return false;
-    if (filters.applicantType && row.APPLICANT_TYPE !== filters.applicantType) return false;
+    if (filters.delayRange && filters.delayRange.length > 0 && !filters.delayRange.includes(row.DelayRange)) return false;
+    if (filters.poleNonPole && filters.poleNonPole.length > 0 && !filters.poleNonPole.includes(row.PoleNonPole)) return false;
+    if (filters.applicantType && filters.applicantType.length > 0 && !filters.applicantType.includes(row.APPLICANT_TYPE)) return false;
+    if (filters.connClass && filters.connClass.length > 0 && !filters.connClass.includes(row.CONN_CLASS)) return false;
+    if (filters.isDuareSarkar && filters.isDuareSarkar.length > 0 && !filters.isDuareSarkar.includes(row.IS_DUARE_SARKAR)) return false;
+    if (filters.isPortalAppl && filters.isPortalAppl.length > 0 && !filters.isPortalAppl.includes(row.IS_PORTAL_APPL)) return false;
+    if (filters.woIssued && filters.woIssued.length > 0 && !filters.woIssued.includes(row.WO_ISSUED || '')) return false;
+    if (filters.divnName && filters.divnName.length > 0 && !filters.divnName.includes(row.DIVN_NAME)) return false;
+    if (filters.suppOffloadWatts && filters.suppOffloadWatts.length > 0 && !filters.suppOffloadWatts.includes(String(row.SUPP_OFFLOAD_WATTS))) return false;
+    if (filters.appliedPhase && filters.appliedPhase.length > 0 && !filters.appliedPhase.includes(row.APPLIED_PHASE || '')) return false;
+    if (filters.noOfPoles && filters.noOfPoles.length > 0 && !filters.noOfPoles.includes(String(row.NO_OF_POLES))) return false;
 
     // 4. Search
     if (filters.searchQuery) {

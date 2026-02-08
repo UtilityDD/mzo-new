@@ -10,8 +10,18 @@ const COLLECTION_SHEET_ID = 'PLACEHOLDER_COLLECTION_SHEET_ID'; // Awaiting User 
 // Web App URL for writing data back to Google Sheets
 const LOGS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbz_Placeholder_URL/exec';
 
-const getExportUrl = (sheetId: string, gid: string = '0') =>
-  `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+const CACHE_KEYS = {
+  USERS: 'mzo_cache_users',
+  NSC: 'mzo_cache_nsc',
+  CONSUMERS: 'mzo_cache_consumers',
+  REPORTS: 'mzo_cache_reports',
+  DOCKETS: 'mzo_cache_dockets',
+  COLLECTION: 'mzo_cache_collection',
+  MAPPING: 'mzo_cache_mapping'
+};
+
+const getExportUrl = (sheetId: string, gid: string = '0', range?: string) =>
+  `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}${range ? `&range=${range}` : ''}`;
 
 const parseCSV = (csv: string): any[] => {
   if (!csv) return [];
@@ -40,10 +50,103 @@ const getValue = (row: any, key: string) => {
   return actualKey ? row[actualKey] : undefined;
 };
 
+// --- Caching Helpers ---
+
+const setCache = (key: string, data: any) => {
+  try {
+    localStorage.setItem(key, JSON.stringify({
+      data,
+      timestamp: Date.now()
+    }));
+  } catch (e) {
+    if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+      console.warn('LocalStorage quota exceeded. Attempting to clear older caches...', key);
+      try {
+        // Clear all MZO caches except the current one if we're trying to save a big one
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith('mzo_cache_') && k !== key) {
+            localStorage.removeItem(k);
+          }
+        });
+        // Retry one time
+        localStorage.setItem(key, JSON.stringify({
+          data,
+          timestamp: Date.now()
+        }));
+        console.log('Successfully saved to cache after clearing space:', key);
+      } catch (retryError) {
+        console.error('Failed to save to cache even after clearing space:', key, retryError);
+      }
+    } else {
+      console.warn('Failed to save to cache:', key, e);
+    }
+  }
+};
+
+const getCache = <T>(key: string): T | null => {
+  try {
+    const item = localStorage.getItem(key);
+    if (!item) return null;
+    return JSON.parse(item).data as T;
+  } catch (e) {
+    return null;
+  }
+};
+
+/**
+ * Silently checks if the data on the sheet has changed by comparing the first data row's date.
+ */
+const syncSheetBackground = async (sheetId: string, gid: string, cacheKey: string) => {
+  try {
+    // Try to fetch only headers + first data row (approx range A1:Z2)
+    const response = await fetch(getExportUrl(sheetId, gid, 'A1:Z2'));
+    if (!response.ok) return;
+    const csvData = await response.text();
+    const rows = parseCSV(csvData);
+    if (rows.length === 0) return;
+
+    const latestDate = getValue(rows[0], 'date') || getValue(rows[0], 'DATE');
+    const cachedData = getCache<any[]>(cacheKey);
+    const cachedFirstRowDate = cachedData && cachedData.length > 0 ? (getValue(cachedData[0], 'date') || getValue(cachedData[0], 'DATE')) : null;
+
+    if (String(latestDate) !== String(cachedFirstRowDate)) {
+      console.log(`[Sync] Change detected in ${cacheKey}. Fetching full data...`);
+      const fullResponse = await fetch(getExportUrl(sheetId, gid));
+      if (fullResponse.ok) {
+        const fullCsv = await fullResponse.text();
+        const fullData = parseCSV(fullCsv);
+        setCache(cacheKey, fullData);
+        // Dispatch an event to notify components that data has updated
+        window.dispatchEvent(new CustomEvent('mzo-data-updated', { detail: { cacheKey } }));
+      }
+    }
+  } catch (error) {
+    console.error(`[Sync] Error syncing ${cacheKey}:`, error);
+  }
+};
+
+export const performFullBackgroundSync = async () => {
+  console.log('[Sync] Starting full background sync...');
+  await Promise.allSettled([
+    syncSheetBackground(NSC_SHEET_ID, '0', CACHE_KEYS.NSC),
+    syncSheetBackground(CONSUMERS_SHEET_ID, '0', CACHE_KEYS.CONSUMERS),
+    syncSheetBackground(USERS_SHEET_ID, '1', CACHE_KEYS.REPORTS),
+    syncSheetBackground(DOCKET_SHEET_ID, '0', CACHE_KEYS.DOCKETS),
+    syncSheetBackground(COLLECTION_SHEET_ID, '0', CACHE_KEYS.COLLECTION),
+    syncSheetBackground(USERS_SHEET_ID, '0', CACHE_KEYS.USERS)
+  ]);
+  console.log('[Sync] Full background sync completed.');
+};
+
+// --- Exported Fetch Functions ---
+
 /**
  * Fetches a map of all codes to their descriptive office names
  */
 export const fetchOfficeMapping = async (): Promise<Record<string, string>> => {
+  const cached = getCache<Record<string, string>>(CACHE_KEYS.MAPPING);
+  if (cached) return cached;
+
   try {
     const response = await fetch(getExportUrl(USERS_SHEET_ID, '0'));
     if (!response.ok) return {};
@@ -66,6 +169,7 @@ export const fetchOfficeMapping = async (): Promise<Record<string, string>> => {
         if (code) map[String(code)] = name;
       });
     });
+    setCache(CACHE_KEYS.MAPPING, map);
     return map;
   } catch (error) {
     console.error('Error fetching office mapping:', error);
@@ -74,13 +178,16 @@ export const fetchOfficeMapping = async (): Promise<Record<string, string>> => {
 };
 
 export const fetchUsersFromSheet = async (): Promise<User[]> => {
+  const cached = getCache<User[]>(CACHE_KEYS.USERS);
+  if (cached) return cached;
+
   try {
     const response = await fetch(getExportUrl(USERS_SHEET_ID, '0'));
     if (!response.ok) throw new Error('Failed to fetch user sheet');
     const csvData = await response.text();
     const rawData = parseCSV(csvData);
 
-    return rawData.map(row => {
+    const users = rawData.map(row => {
       const rawIsActive = getValue(row, 'is_active');
       const isActive = (
         rawIsActive === undefined ||
@@ -106,6 +213,8 @@ export const fetchUsersFromSheet = async (): Promise<User[]> => {
         is_active: isActive
       };
     });
+    setCache(CACHE_KEYS.USERS, users);
+    return users;
   } catch (error) {
     console.error('Error fetching users:', error);
     return [];
@@ -156,13 +265,28 @@ export const fetchAuditLogsFromSheet = async (): Promise<AuditEntry[]> => {
 };
 
 export const fetchPendingNSCFromSheet = async (): Promise<PendingNSCData[]> => {
+  const cached = getCache<any>(CACHE_KEYS.NSC);
+
+  // Handle compact storage format (array of arrays)
+  if (cached) {
+    if (Array.isArray(cached) && cached.length > 0 && Array.isArray(cached[0])) {
+      const [headers, ...rows] = cached;
+      return rows.map(row => {
+        const obj: any = {};
+        headers.forEach((h: string, i: number) => obj[h] = row[i]);
+        return obj as PendingNSCData;
+      });
+    }
+    return cached as PendingNSCData[];
+  }
+
   try {
     const response = await fetch(getExportUrl(NSC_SHEET_ID, '0'));
     if (!response.ok) throw new Error('Failed to fetch NSC sheet');
     const csvData = await response.text();
     const rawData = parseCSV(csvData);
 
-    return rawData.map(row => ({
+    const data = rawData.map(row => ({
       date: getValue(row, 'date'),
       zone_code: getValue(row, 'zone_code'),
       region_code: getValue(row, 'region_code'),
@@ -190,9 +314,25 @@ export const fetchPendingNSCFromSheet = async (): Promise<PendingNSCData[]> => {
       DelayInWO: parseFloat(getValue(row, 'DelayInWO')) || 0,
       DelayInSC: parseFloat(getValue(row, 'DelayInSC')) || 0,
       DelayInQtn: parseFloat(getValue(row, 'DelayInQtn')) || 0,
+      DelaySerial: parseInt(getValue(row, 'DelaySerial')) || 0,
       SCN_STATUS: getValue(row, 'SCN_STATUS'),
-      INSPECTION_COMMENT: getValue(row, 'INSPECTION_COMMENT')
+      WO_ISSUED: getValue(row, 'WO_ISSUED'),
+      INSPECTION_COMMENT: getValue(row, 'INSPECTION_COMMENT'),
+      SUPP_OFFLOAD_WATTS: parseFloat(getValue(row, 'LOAD_WATTS')) || parseFloat(getValue(row, 'SUPP_OFFLOAD_WATTS')) || 0,
+      APPLIED_PHASE: getValue(row, 'APPLIED_PHASE'),
+      NO_OF_POLES: parseInt(getValue(row, 'NO_OF_POLES')) || 0
     }));
+
+    // Convert to compact format before caching if it's a large dataset
+    if (data.length > 500) {
+      const headers = Object.keys(data[0]);
+      const compactData = [headers, ...data.map(obj => headers.map(h => (obj as any)[h]))];
+      setCache(CACHE_KEYS.NSC, compactData);
+    } else {
+      setCache(CACHE_KEYS.NSC, data);
+    }
+
+    return data;
   } catch (error) {
     console.error('Error fetching Pending NSC:', error);
     return [];
@@ -200,13 +340,16 @@ export const fetchPendingNSCFromSheet = async (): Promise<PendingNSCData[]> => {
 };
 
 export const fetchConsumersFromSheet = async (): Promise<ConsumerData[]> => {
+  const cached = getCache<ConsumerData[]>(CACHE_KEYS.CONSUMERS);
+  if (cached) return cached;
+
   try {
     const response = await fetch(getExportUrl(CONSUMERS_SHEET_ID, '0'));
     if (!response.ok) throw new Error('Failed to fetch Consumers sheet');
     const csvData = await response.text();
     const rawData = parseCSV(csvData);
 
-    return rawData.map(row => ({
+    const data = rawData.map(row => ({
       date: getValue(row, 'date'),
       ccc_code: getValue(row, 'ccc_code'),
       CONN_STAT: getValue(row, 'CONN_STAT'),
@@ -222,6 +365,8 @@ export const fetchConsumersFromSheet = async (): Promise<ConsumerData[]> => {
       SD_LAKH: parseFloat(getValue(row, 'SD_LAKH')) || 0,
       OSD_LAKH: parseFloat(getValue(row, 'OSD_LAKH')) || 0
     }));
+    setCache(CACHE_KEYS.CONSUMERS, data);
+    return data;
   } catch (error) {
     console.error('Error fetching Consumers:', error);
     return [];
@@ -229,13 +374,16 @@ export const fetchConsumersFromSheet = async (): Promise<ConsumerData[]> => {
 };
 
 export const fetchReportsFromSheet = async (): Promise<ReportData[]> => {
+  const cached = getCache<ReportData[]>(CACHE_KEYS.REPORTS);
+  if (cached) return cached;
+
   try {
     const response = await fetch(getExportUrl(USERS_SHEET_ID, '1'));
     if (!response.ok) return [];
     const csvData = await response.text();
     const rawData = parseCSV(csvData);
 
-    return rawData.map(row => ({
+    const data = rawData.map(row => ({
       date: getValue(row, 'date'),
       zone_code: getValue(row, 'zone_code'),
       region_code: getValue(row, 'region_code'),
@@ -246,6 +394,8 @@ export const fetchReportsFromSheet = async (): Promise<ReportData[]> => {
       customers: parseInt(getValue(row, 'customers')) || 0,
       efficiency: parseFloat(getValue(row, 'efficiency')) || 0
     }));
+    setCache(CACHE_KEYS.REPORTS, data);
+    return data;
   } catch (error) {
     console.error('Error fetching reports:', error);
     return [];
@@ -253,13 +403,16 @@ export const fetchReportsFromSheet = async (): Promise<ReportData[]> => {
 };
 
 export const fetchDocketDataFromSheet = async (): Promise<DocketData[]> => {
+  const cached = getCache<DocketData[]>(CACHE_KEYS.DOCKETS);
+  if (cached) return cached;
+
   try {
     const response = await fetch(getExportUrl(DOCKET_SHEET_ID, '0'));
     if (!response.ok) throw new Error('Failed to fetch Docket sheet');
     const csvData = await response.text();
     const rawData = parseCSV(csvData);
 
-    return rawData.map(row => ({
+    const data = rawData.map(row => ({
       date: getValue(row, 'date'),
       zone_code: getValue(row, 'zone_code'),
       region_code: getValue(row, 'region_code'),
@@ -274,6 +427,8 @@ export const fetchDocketDataFromSheet = async (): Promise<DocketData[]> => {
       DESCRIPTION: getValue(row, 'DESCRIPTION'),
       doc_crn_dt: getValue(row, 'doc_crn_dt')
     }));
+    setCache(CACHE_KEYS.DOCKETS, data);
+    return data;
   } catch (error) {
     console.error('Error fetching Docket Data:', error);
     return [];
@@ -281,13 +436,16 @@ export const fetchDocketDataFromSheet = async (): Promise<DocketData[]> => {
 };
 
 export const fetchCollectionDataFromSheet = async (): Promise<CollectionData[]> => {
+  const cached = getCache<CollectionData[]>(CACHE_KEYS.COLLECTION);
+  if (cached) return cached;
+
   try {
     const response = await fetch(getExportUrl(COLLECTION_SHEET_ID, '0'));
     if (!response.ok) throw new Error('Failed to fetch Collection sheet');
     const csvData = await response.text();
     const rawData = parseCSV(csvData);
 
-    return rawData.map(row => ({
+    const data = rawData.map(row => ({
       date: getValue(row, 'date'),
       zone_code: getValue(row, 'zone_code'),
       region_code: getValue(row, 'region_code'),
@@ -298,8 +456,11 @@ export const fetchCollectionDataFromSheet = async (): Promise<CollectionData[]> 
       COUNT: parseInt(getValue(row, 'COUNT')) || 0,
       AMOUNT_PAID: parseFloat(getValue(row, 'AMOUNT PAID')) || parseFloat(getValue(row, 'AMOUNT_PAID')) || 0
     }));
+    setCache(CACHE_KEYS.COLLECTION, data);
+    return data;
   } catch (error) {
     console.error('Error fetching Collection Data:', error);
     return [];
   }
 };
+

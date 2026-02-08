@@ -54,6 +54,11 @@ const DocketReport: React.FC<DocketReportProps> = ({ user }) => {
                 <div className="flex items-center gap-2 text-blue-600">
                     <i className="fa-solid fa-location-dot text-[10px]"></i>
                     <span className="text-xs font-bold uppercase tracking-wider">{getOfficeName()}</span>
+                    {data.length > 0 && data[0].date && (
+                        <span className="text-[9px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200 ml-1">
+                            Updated: {data[0].date}
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -131,8 +136,8 @@ const DocketReport: React.FC<DocketReportProps> = ({ user }) => {
                                     </div>
                                     <div className="text-right">
                                         <div className={`text-[10px] font-black px-3 py-1.5 rounded-xl inline-block shadow-sm ${row.prob_type.toLowerCase().includes('fuse') ? 'bg-orange-50 text-orange-600 border border-orange-100' :
-                                                row.prob_type.toLowerCase().includes('break') ? 'bg-rose-50 text-rose-600 border border-rose-100' :
-                                                    'bg-blue-50 text-blue-600 border border-blue-100'
+                                            row.prob_type.toLowerCase().includes('break') ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+                                                'bg-blue-50 text-blue-600 border border-blue-100'
                                             }`}>
                                             {row.prob_type}
                                         </div>
