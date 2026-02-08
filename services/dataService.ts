@@ -63,16 +63,31 @@ export const fetchConsumerData = async (user: User, filters: HierarchyFilter): P
   const allData = await fetchConsumersFromSheet();
 
   return allData.filter(row => {
-    // Note: Consumers sheet doesn't have full hierarchy codes, usually only CCC
+    // 1. Mandatory Hierarchy Restriction
     if (user.role === UserRole.CCC && row.ccc_code !== user.ccc_code) return false;
+    if (user.role === UserRole.DIVISION && row.division_code && row.division_code !== user.division_code) return false;
+    if (user.role === UserRole.REGION && row.region_code && row.region_code !== user.region_code) return false;
 
-    // UI Hierarchy Filters
-    if (filters.ccc && row.ccc_code !== filters.ccc) return false;
+    // 2. UI Hierarchy Multi-select Filters
+    if (filters.regionCodes && filters.regionCodes.length > 0 && !filters.regionCodes.includes(row.region_code || '')) return false;
+    if (filters.divisionCodes && filters.divisionCodes.length > 0 && !filters.divisionCodes.includes(row.division_code || '')) return false;
+    if (filters.cccCodes && filters.cccCodes.length > 0 && !filters.cccCodes.includes(row.ccc_code)) return false;
 
-    // Search
+    // 3. Technical categorical filters
+    if (filters.connStat && filters.connStat.length > 0 && !filters.connStat.includes(row.CONN_STAT)) return false;
+    if (filters.baseClass && filters.baseClass.length > 0 && !filters.baseClass.includes(row.BASE_CLASS)) return false;
+    if (filters.category && filters.category.length > 0 && !filters.category.includes(row.CATEGORY)) return false;
+    if (filters.meterType && filters.meterType.length > 0 && !filters.meterType.includes(row.TYPE_OF_METER)) return false;
+    if (filters.connPhase && filters.connPhase.length > 0 && !filters.connPhase.includes(row.CONN_PHASE)) return false;
+    if (filters.govtStat && filters.govtStat.length > 0 && !filters.govtStat.includes(row.GOVT_STAT)) return false;
+    if (filters.connBy && filters.connBy.length > 0 && !filters.connBy.includes(row.CONN_BY)) return false;
+
+    // 4. Search
     if (filters.searchQuery) {
       const q = filters.searchQuery.toLowerCase();
       const match =
+        row.ccc_code.toLowerCase().includes(q) ||
+        (row.ccc_name && row.ccc_name.toLowerCase().includes(q)) ||
         row.CATEGORY.toLowerCase().includes(q) ||
         row.CONN_STAT.toLowerCase().includes(q);
       if (!match) return false;
@@ -87,10 +102,11 @@ export const calculateConsumerKPIs = (data: ConsumerData[]) => {
   const totalLoad = data.reduce((s, r) => s + r.LOAD, 0);
   const totalSD = data.reduce((s, r) => s + r.SD_LAKH, 0);
   const totalOSD = data.reduce((s, r) => s + r.OSD_LAKH, 0);
+  const perConsumerLoad = totalCount > 0 ? (totalLoad / totalCount).toFixed(2) : '0';
 
   return [
     { label: 'Consumers', value: totalCount.toLocaleString(), trend: 0, icon: 'fa-users', color: 'bg-blue-500' },
-    { label: 'Total Load', value: `${totalLoad.toLocaleString()} KW`, trend: 0, icon: 'fa-bolt', color: 'bg-orange-500' },
+    { label: 'Total Load', value: `${(totalLoad / 1000).toFixed(2)} MW`, subtitle: `${perConsumerLoad} KW/Consumer`, trend: 0, icon: 'fa-bolt', color: 'bg-orange-500' },
     { label: 'SD (Lakh)', value: `₹${totalSD.toFixed(2)}`, trend: 0, icon: 'fa-vault', color: 'bg-emerald-500' },
     { label: 'OSD (Lakh)', value: `₹${totalOSD.toFixed(2)}`, trend: 0, icon: 'fa-triangle-exclamation', color: 'bg-rose-500' }
   ];

@@ -93,7 +93,13 @@ export interface PendingNSCData {
 
 export interface ConsumerData {
   date: string;
+  zone_code?: string;
+  region_code?: string;
+  division_code?: string;
   ccc_code: string;
+  ccc_name?: string;
+  region_name?: string;
+  division_name?: string;
   CONN_STAT: string;
   BASE_CLASS: string;
   CATEGORY: string;
@@ -154,6 +160,17 @@ export interface HierarchyFilter {
   suppOffloadWatts?: string[];
   appliedPhase?: string[];
   noOfPoles?: string[];
+  // Consumer specific
+  connStat?: string[];
+  baseClass?: string[];
+  category?: string[];
+  meterType?: string[];
+  connPhase?: string[];
+  govtStat?: string[];
+  connBy?: string[];
+  regionCodes?: string[];
+  divisionCodes?: string[];
+  cccCodes?: string[];
 }
 
 export interface KPIData {
@@ -162,4 +179,5 @@ export interface KPIData {
   trend: number;
   icon: string;
   color: string;
+  subtitle?: string;
 }

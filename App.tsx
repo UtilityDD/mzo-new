@@ -166,7 +166,10 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col pb-20">
       <main className="flex-1 overflow-y-auto">
 
-        {activeTab === 'home' && <Dashboard user={user} />}
+        {activeTab === 'home' && <Dashboard user={user} onNavigateToReport={(id) => {
+          setSelectedReportId(id);
+          setActiveTab('reports');
+        }} />}
 
         {activeTab === 'reports' && (
           selectedReportId ? (

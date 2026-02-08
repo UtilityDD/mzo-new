@@ -181,21 +181,21 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
    );
 
    const FilterPage = () => (
-      <div className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto animate-in slide-in-from-bottom-5">
+      <div className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto animate-in slide-in-from-bottom-5 pb-32">
          <div className="sticky top-0 bg-white/80 backdrop-blur-lg border-b border-gray-100 px-6 py-6 flex justify-between items-center z-10">
             <div>
-               <h2 className="text-xl font-black text-gray-900 tracking-tight">Filter Options</h2>
+               <h2 className="text-xl font-black text-gray-900 tracking-tight">Report Filters</h2>
                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Select your refinement</p>
             </div>
             <button
                onClick={() => setShowFilterPage(false)}
-               className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 active:scale-90 transition-all"
+               className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 active:scale-90 transition-all font-bold"
             >
                <i className="fa-solid fa-xmark text-lg"></i>
             </button>
          </div>
 
-         <div className="p-6 space-y-8 max-w-lg mx-auto">
+         <div className="p-6 space-y-8 max-w-lg mx-auto md:max-w-xl">
             {/* Search Section */}
             <div className="space-y-3">
                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Global Search</label>
@@ -211,157 +211,147 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
                </div>
             </div>
 
-            {/* Delay Range Selector */}
-            <div className="space-y-3">
-               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Delay Range</label>
-               <div className="flex flex-wrap gap-2">
-                  {getUniqueValues('DelayRange').map(range => (
-                     <FilterButton
-                        key={range}
-                        label={range}
-                        active={filters.delayRange?.includes(range) || false}
-                        onClick={() => toggleFilter('delayRange', range)}
-                     />
-                  ))}
-               </div>
-            </div>
-
-            {/* Class Selector */}
-            <div className="space-y-3">
-               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Connection Class</label>
-               <div className="flex flex-wrap gap-2">
-                  {getUniqueValues('CONN_CLASS').map(cls => (
-                     <FilterButton
-                        key={cls}
-                        label={`Class ${cls}`}
-                        active={filters.connClass?.includes(cls) || false}
-                        onClick={() => toggleFilter('connClass', cls)}
-                     />
-                  ))}
-               </div>
-            </div>
-
-            {/* Connection Type Selector */}
-            <div className="space-y-3">
-               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Connection Type</label>
-               <div className="flex flex-wrap gap-2">
-                  {getUniqueValues('PoleNonPole').map(type => (
-                     <FilterButton
-                        key={type}
-                        label={type}
-                        active={filters.poleNonPole?.includes(type) || false}
-                        onClick={() => toggleFilter('poleNonPole', type)}
-                     />
-                  ))}
-               </div>
-            </div>
-
-            {/* Status & Flag Toggles */}
-            <div className="grid grid-cols-2 gap-6">
+            {/* Administrative Section */}
+            <div className="space-y-4">
+               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Administrative Levels</h3>
                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">WO Issued</label>
+                  <label className="text-[9px] font-black text-blue-600 uppercase tracking-widest px-1">Division</label>
                   <div className="flex flex-wrap gap-2">
-                     {getUniqueValues('WO_ISSUED').map(val => (
+                     {getUniqueValues('DIVN_NAME').map(div => (
                         <FilterButton
-                           key={val}
-                           label={val}
-                           active={filters.woIssued?.includes(val) || false}
-                           onClick={() => toggleFilter('woIssued', val)}
-                        />
-                     ))}
-                  </div>
-               </div>
-               <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Applicant Type</label>
-                  <div className="flex flex-wrap gap-2">
-                     {getUniqueValues('APPLICANT_TYPE').map(type => (
-                        <FilterButton
-                           key={type}
-                           label={type}
-                           active={filters.applicantType?.includes(type) || false}
-                           onClick={() => toggleFilter('applicantType', type)}
+                           key={div}
+                           label={div}
+                           active={filters.divnName?.includes(div) || false}
+                           onClick={() => toggleFilter('divnName', div)}
                         />
                      ))}
                   </div>
                </div>
             </div>
 
-            <div className="space-y-3">
-               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Division</label>
-               <div className="flex flex-wrap gap-2">
-                  {getUniqueValues('DIVN_NAME').map(div => (
-                     <FilterButton
-                        key={div}
-                        label={div}
-                        active={filters.divnName?.includes(div) || false}
-                        onClick={() => toggleFilter('divnName', div)}
-                     />
-                  ))}
-               </div>
-            </div>
-            <div className="space-y-3">
-               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Applied Phase</label>
-               <div className="flex flex-wrap gap-2">
-                  {getUniqueValues('APPLIED_PHASE').map(phase => (
-                     <FilterButton
-                        key={phase}
-                        label={phase}
-                        active={filters.appliedPhase?.includes(phase) || false}
-                        onClick={() => toggleFilter('appliedPhase', phase)}
-                     />
-                  ))}
-               </div>
-            </div>
-            <div className="space-y-3">
-               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Load</label>
-               <div className="flex flex-wrap gap-2">
-                  {getUniqueValues('SUPP_OFFLOAD_WATTS').map(watts => (
-                     <FilterButton
-                        key={String(watts)}
-                        label={String(watts)}
-                        active={filters.suppOffloadWatts?.includes(String(watts)) || false}
-                        onClick={() => toggleFilter('suppOffloadWatts', String(watts))}
-                     />
-                  ))}
-               </div>
-            </div>
-            <div className="space-y-3">
-               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">No. of Poles</label>
-               <div className="flex flex-wrap gap-2">
-                  {getUniqueValues('NO_OF_POLES').map(poles => (
-                     <FilterButton
-                        key={String(poles)}
-                        label={String(poles)}
-                        active={filters.noOfPoles?.includes(String(poles)) || false}
-                        onClick={() => toggleFilter('noOfPoles', String(poles))}
-                     />
-                  ))}
-               </div>
-            </div>
-            <div className="space-y-3">
-               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Portal Application</label>
-               <div className="flex flex-wrap gap-2">
-                  {getUniqueValues('IS_PORTAL_APPL').map(status => (
-                     <FilterButton
-                        key={status}
-                        label={status === 'Y' ? 'Portal' : 'Non-Portal'}
-                        active={filters.isPortalAppl?.includes(status) || false}
-                        onClick={() => toggleFilter('isPortalAppl', status)}
-                     />
-                  ))}
-               </div>
-            </div>
-            <div className="space-y-3">
-               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Duare Sarkar</label>
-               <div className="flex flex-wrap gap-2">
-                  {getUniqueValues('IS_DUARE_SARKAR').map(status => (
-                     <FilterButton
-                        key={status}
-                        label={status === 'Y' ? 'Duare Sarkar' : 'Regular'}
-                        active={filters.isDuareSarkar?.includes(status) || false}
-                        onClick={() => toggleFilter('isDuareSarkar', status)}
-                     />
-                  ))}
+            {/* Technical Specs Section */}
+            <div className="space-y-6">
+               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Technical Specs</h3>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                  {/* Delay Range Selector */}
+                  <div className="space-y-3">
+                     <label className="text-[9px] font-black text-emerald-600 uppercase tracking-widest px-1">Delay Range</label>
+                     <div className="flex flex-wrap gap-2">
+                        {getUniqueValues('DelayRange').map(range => (
+                           <FilterButton
+                              key={range}
+                              label={range}
+                              active={filters.delayRange?.includes(range) || false}
+                              onClick={() => toggleFilter('delayRange', range)}
+                           />
+                        ))}
+                     </div>
+                  </div>
+
+                  {/* Class Selector */}
+                  <div className="space-y-3">
+                     <label className="text-[9px] font-black text-emerald-600 uppercase tracking-widest px-1">Connection Class</label>
+                     <div className="flex flex-wrap gap-2">
+                        {getUniqueValues('CONN_CLASS').map(cls => (
+                           <FilterButton
+                              key={cls}
+                              label={`Class ${cls}`}
+                              active={filters.connClass?.includes(cls) || false}
+                              onClick={() => toggleFilter('connClass', cls)}
+                           />
+                        ))}
+                     </div>
+                  </div>
+
+                  {/* Connection Type Selector */}
+                  <div className="space-y-3">
+                     <label className="text-[9px] font-black text-emerald-600 uppercase tracking-widest px-1">Connection Type</label>
+                     <div className="flex flex-wrap gap-2">
+                        {getUniqueValues('PoleNonPole').map(type => (
+                           <FilterButton
+                              key={type}
+                              label={type}
+                              active={filters.poleNonPole?.includes(type) || false}
+                              onClick={() => toggleFilter('poleNonPole', type)}
+                           />
+                        ))}
+                     </div>
+                  </div>
+
+                  {/* WO Issued */}
+                  <div className="space-y-3">
+                     <label className="text-[9px] font-black text-emerald-600 uppercase tracking-widest px-1">WO Issued</label>
+                     <div className="flex flex-wrap gap-2">
+                        {getUniqueValues('WO_ISSUED').map(val => (
+                           <FilterButton
+                              key={val}
+                              label={val}
+                              active={filters.woIssued?.includes(val) || false}
+                              onClick={() => toggleFilter('woIssued', val)}
+                           />
+                        ))}
+                     </div>
+                  </div>
+
+                  {/* Applicant Type */}
+                  <div className="space-y-3">
+                     <label className="text-[9px] font-black text-emerald-600 uppercase tracking-widest px-1">Applicant Type</label>
+                     <div className="flex flex-wrap gap-2">
+                        {getUniqueValues('APPLICANT_TYPE').map(type => (
+                           <FilterButton
+                              key={type}
+                              label={type}
+                              active={filters.applicantType?.includes(type) || false}
+                              onClick={() => toggleFilter('applicantType', type)}
+                           />
+                        ))}
+                     </div>
+                  </div>
+
+                  {/* Applied Phase */}
+                  <div className="space-y-3">
+                     <label className="text-[9px] font-black text-emerald-600 uppercase tracking-widest px-1">Applied Phase</label>
+                     <div className="flex flex-wrap gap-2">
+                        {getUniqueValues('APPLIED_PHASE').map(phase => (
+                           <FilterButton
+                              key={phase}
+                              label={phase}
+                              active={filters.appliedPhase?.includes(phase) || false}
+                              onClick={() => toggleFilter('appliedPhase', phase)}
+                           />
+                        ))}
+                     </div>
+                  </div>
+
+                  {/* Status & Flag Toggles */}
+                  <div className="space-y-3">
+                     <label className="text-[9px] font-black text-emerald-600 uppercase tracking-widest px-1">Portal Application</label>
+                     <div className="flex flex-wrap gap-2">
+                        {getUniqueValues('IS_PORTAL_APPL').map(status => (
+                           <FilterButton
+                              key={status}
+                              label={status === 'Y' ? 'Portal' : 'Non-Portal'}
+                              active={filters.isPortalAppl?.includes(status) || false}
+                              onClick={() => toggleFilter('isPortalAppl', status)}
+                           />
+                        ))}
+                     </div>
+                  </div>
+
+                  <div className="space-y-3">
+                     <label className="text-[9px] font-black text-emerald-600 uppercase tracking-widest px-1">Duare Sarkar</label>
+                     <div className="flex flex-wrap gap-2">
+                        {getUniqueValues('IS_DUARE_SARKAR').map(status => (
+                           <FilterButton
+                              key={status}
+                              label={status === 'Y' ? 'Duare Sarkar' : 'Regular'}
+                              active={filters.isDuareSarkar?.includes(status) || false}
+                              onClick={() => toggleFilter('isDuareSarkar', status)}
+                           />
+                        ))}
+                     </div>
+                  </div>
                </div>
             </div>
 
@@ -429,17 +419,17 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
    };
 
    return (
-      <div className="pb-24 flex flex-col h-full bg-gray-50 fade-in">
+      <div className="pb-32 flex flex-col h-full bg-gray-50 fade-in">
          {showFilterPage && <FilterPage />}
 
-         {/* Clean Minimal Header */}
+         {/* Premium Header */}
          <div className="glass px-6 pt-10 pb-6 border-b border-gray-100 sticky top-0 z-30 premium-shadow">
-            <div className="flex justify-between items-start mb-4">
-               <div>
+            <div className="flex justify-between items-start mb-6">
+               <div className="flex-1">
                   <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none mb-2">
                      Pending NSC Status
                   </h1>
-                  <div className="flex items-center gap-2 text-emerald-600">
+                  <div className="flex items-center gap-2 text-blue-600">
                      <i className="fa-solid fa-location-dot text-[10px]"></i>
                      <span className="text-xs font-bold uppercase tracking-wider">{getOfficeName()}</span>
                      {data.length > 0 && data[0].date && (
@@ -449,39 +439,40 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
                      )}
                   </div>
                </div>
-               <div className="flex bg-gray-100 p-1 rounded-2xl">
+
+               <div className="flex items-center gap-3">
                   <button
-                     onClick={() => setViewMode('list')}
-                     className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400'}`}
+                     onClick={() => setShowFilterPage(true)}
+                     className="relative w-12 h-12 rounded-2xl bg-white border border-gray-100 android-shadow flex items-center justify-center text-gray-400 hover:text-blue-600 transition-all active:scale-90"
                   >
-                     List
-                  </button>
-                  <button
-                     onClick={() => setViewMode('summary')}
-                     className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'summary' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400'}`}
-                  >
-                     Summary
+                     <i className="fa-solid fa-sliders text-lg"></i>
+                     {getActiveFilterCount() > 0 && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center border-2 border-white ring-2 ring-blue-50">
+                           {getActiveFilterCount()}
+                        </span>
+                     )}
                   </button>
                </div>
             </div>
 
-            <button
-               onClick={() => setShowFilterPage(true)}
-               className="w-full py-4 bg-white border border-gray-100 rounded-2xl flex items-center justify-between px-5 android-shadow active:scale-95 transition-all group"
-            >
-               <div className="flex items-center gap-3">
-                  <i className="fa-solid fa-filter text-blue-600 text-xs"></i>
-                  <span className="text-[11px] font-black text-gray-700 uppercase tracking-widest">Configure Filters</span>
-               </div>
-               <div className="flex items-center gap-2 text-gray-400">
-                  {getActiveFilterCount() > 0 && (
-                     <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-black flex items-center justify-center border border-blue-200 animate-pulse">
-                        {getActiveFilterCount()}
-                     </span>
-                  )}
-                  <i className="fa-solid fa-chevron-right text-[10px] group-hover:translate-x-1 transition-transform"></i>
-               </div>
-            </button>
+            {/* High UX View Toggle */}
+            <div className="flex bg-gray-100/80 backdrop-blur p-1 rounded-2xl border border-gray-100">
+               <button
+                  onClick={() => setViewMode('summary')}
+                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'summary' ? 'bg-white text-blue-600 shadow-md scale-[1.02]' : 'text-gray-400'}`}
+               >
+                  <i className="fa-solid fa-chart-pie opacity-50"></i>
+                  Summary
+               </button>
+               <button
+                  onClick={() => setViewMode('list')}
+                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'list' ? 'bg-white text-blue-600 shadow-md scale-[1.02]' : 'text-gray-400'}`}
+               >
+                  <i className="fa-solid fa-list-ul opacity-50"></i>
+                  List
+                  {viewMode !== 'list' && <span className="text-[8px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded-md ml-1">{data.length}</span>}
+               </button>
+            </div>
          </div>
 
          <div className="px-4 pt-6 space-y-6 max-w-lg mx-auto md:max-w-4xl w-full">

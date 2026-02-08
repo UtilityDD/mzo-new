@@ -42,7 +42,13 @@ const CollectionReport: React.FC<CollectionReportProps> = ({ user }) => {
         const topMode = Object.entries(modes).sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || 'N/A';
 
         return [
-            { label: 'Total Collection', value: `₹${(totalAmount / 100000).toFixed(2)}L`, trend: 0, icon: 'fa-vault', color: 'bg-emerald-600' },
+            {
+                label: 'Total Collection',
+                value: totalAmount >= 100
+                    ? `₹${(totalAmount / 100).toFixed(2)} Cr`
+                    : `₹${totalAmount.toFixed(2)} L`,
+                trend: 0, icon: 'fa-vault', color: 'bg-emerald-600'
+            },
             { label: 'Total Count', value: totalCount.toLocaleString(), trend: 0, icon: 'fa-receipt', color: 'bg-blue-600' },
             { label: 'Avg / Trans', value: `₹${avgAmount.toFixed(0)}`, trend: 0, icon: 'fa-calculator', color: 'bg-indigo-600' },
             { label: 'Preferred Mode', value: topMode, trend: 0, icon: 'fa-credit-card', color: 'bg-purple-600' }
@@ -209,7 +215,7 @@ const CollectionReport: React.FC<CollectionReportProps> = ({ user }) => {
                                     <p className="text-xs font-bold text-gray-500 uppercase tracking-tight">CCC Code: {row.ccc_code}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-sm font-black text-gray-900">₹{row.AMOUNT_PAID.toLocaleString()}</p>
+                                    <p className="text-sm font-black text-gray-900">₹{row.AMOUNT_PAID.toLocaleString()} L</p>
                                     <p className="text-[9px] font-bold text-gray-400 uppercase">{row.COUNT} Collections</p>
                                 </div>
                             </div>

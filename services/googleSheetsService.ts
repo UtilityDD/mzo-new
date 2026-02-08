@@ -5,7 +5,8 @@ const USERS_SHEET_ID = '1rWw9wrbuAduKThCd4tRLzfpULWedyGmQNnHeAmUQSR4';
 const NSC_SHEET_ID = '1jP1fPkntRCuUL7YNRrcrvB-Mm_c-5etcMEPa_1nQm40';
 const CONSUMERS_SHEET_ID = '1_56xJru04Y_Hv4yybMZ79XUmNAajcF8OV-hSISUDR00';
 const DOCKET_SHEET_ID = '1FcCzii1tB66sbw9AXrOd-rW3i-IsZVjG4Hhb2Jtev5c';
-const COLLECTION_SHEET_ID = 'PLACEHOLDER_COLLECTION_SHEET_ID'; // Awaiting User Input
+const COLLECTION_SHEET_ID = '1qQksFiKDSXJFYBWMKZX2E9lOg75f_ZkdOFtH2Zs4AH0';
+const CCC_HIERARCHY_GID = '2145517796';
 
 // Web App URL for writing data back to Google Sheets
 const LOGS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbz_Placeholder_URL/exec';
@@ -148,31 +149,62 @@ export const fetchOfficeMapping = async (): Promise<Record<string, string>> => {
   if (cached) return cached;
 
   try {
-    const response = await fetch(getExportUrl(USERS_SHEET_ID, '0'));
+    const response = await fetch(getExportUrl(USERS_SHEET_ID, CCC_HIERARCHY_GID));
     if (!response.ok) return {};
     const csvData = await response.text();
     const rawData = parseCSV(csvData);
 
     const map: Record<string, string> = {};
     rawData.forEach(row => {
-      const name = getValue(row, 'office_name') || getValue(row, 'office');
-      if (!name) return;
+      const cName = getValue(row, 'ccc_name');
+      const dName = getValue(row, 'division_name');
+      const rName = getValue(row, 'region_name');
 
-      const codes = [
-        getValue(row, 'zone_code'),
-        getValue(row, 'region_code'),
-        getValue(row, 'division_code'),
-        getValue(row, 'ccc_code')
-      ].filter(Boolean);
+      const cCode = getValue(row, 'ccc_code');
+      const dCode = getValue(row, 'division_code');
+      const rCode = getValue(row, 'region_code');
+      const zCode = getValue(row, 'zone_code');
 
-      codes.forEach(code => {
-        if (code) map[String(code)] = name;
-      });
+      if (cCode && cName) map[String(cCode)] = cName;
+      if (dCode && dName) map[String(dCode)] = dName;
+      if (rCode && rName) map[String(rCode)] = rName;
+      if (zCode) map[String(zCode)] = getValue(row, 'zone_name') || 'Zone ' + zCode;
     });
     setCache(CACHE_KEYS.MAPPING, map);
     return map;
   } catch (error) {
     console.error('Error fetching office mapping:', error);
+    return {};
+  }
+};
+
+/**
+ * Fetches parent mapping for all CCCs
+ */
+export const fetchHierarchyMap = async (): Promise<Record<string, any>> => {
+  try {
+    const response = await fetch(getExportUrl(USERS_SHEET_ID, CCC_HIERARCHY_GID));
+    if (!response.ok) return {};
+    const csvData = await response.text();
+    const rawData = parseCSV(csvData);
+
+    const map: Record<string, any> = {};
+    rawData.forEach(row => {
+      const ccc = getValue(row, 'ccc_code');
+      if (ccc) {
+        map[ccc] = {
+          zone_code: getValue(row, 'zone_code'),
+          region_code: getValue(row, 'region_code'),
+          division_code: getValue(row, 'division_code'),
+          ccc_name: getValue(row, 'ccc_name'),
+          region_name: getValue(row, 'region_name'),
+          division_name: getValue(row, 'division_name')
+        };
+      }
+    });
+    return map;
+  } catch (error) {
+    console.error('Error fetching hierarchy map:', error);
     return {};
   }
 };
@@ -344,27 +376,42 @@ export const fetchConsumersFromSheet = async (): Promise<ConsumerData[]> => {
   if (cached) return cached;
 
   try {
-    const response = await fetch(getExportUrl(CONSUMERS_SHEET_ID, '0'));
+    const [response, hMap] = await Promise.all([
+      fetch(getExportUrl(CONSUMERS_SHEET_ID, '0')),
+      fetchHierarchyMap()
+    ]);
+
     if (!response.ok) throw new Error('Failed to fetch Consumers sheet');
     const csvData = await response.text();
     const rawData = parseCSV(csvData);
 
-    const data = rawData.map(row => ({
-      date: getValue(row, 'date'),
-      ccc_code: getValue(row, 'ccc_code'),
-      CONN_STAT: getValue(row, 'CONN_STAT'),
-      BASE_CLASS: getValue(row, 'BASE_CLASS'),
-      CATEGORY: getValue(row, 'CATEGORY'),
-      TYPE_OF_METER: getValue(row, 'TYPE_OF_METER'),
-      CONN_PHASE: getValue(row, 'CONN_PHASE'),
-      GOVT_STAT: getValue(row, 'GOVT_STAT'),
-      TIME_OF_DAY: getValue(row, 'TIME_OF_DAY'),
-      CONN_BY: getValue(row, 'CONN_BY'),
-      COUNT: parseInt(getValue(row, 'COUNT')) || 0,
-      LOAD: parseFloat(getValue(row, 'LOAD')) || 0,
-      SD_LAKH: parseFloat(getValue(row, 'SD_LAKH')) || 0,
-      OSD_LAKH: parseFloat(getValue(row, 'OSD_LAKH')) || 0
-    }));
+    const data = rawData.map(row => {
+      const ccc = getValue(row, 'ccc_code');
+      const parents = hMap[ccc] || {};
+
+      return {
+        date: getValue(row, 'date'),
+        ccc_code: ccc,
+        zone_code: parents.zone_code,
+        region_code: parents.region_code,
+        division_code: parents.division_code,
+        ccc_name: parents.ccc_name,
+        region_name: parents.region_name,
+        division_name: parents.division_name,
+        CONN_STAT: getValue(row, 'CONN_STAT'),
+        BASE_CLASS: getValue(row, 'BASE_CLASS'),
+        CATEGORY: getValue(row, 'CATEGORY'),
+        TYPE_OF_METER: getValue(row, 'TYPE_OF_METER'),
+        CONN_PHASE: getValue(row, 'CONN_PHASE'),
+        GOVT_STAT: getValue(row, 'GOVT_STAT'),
+        TIME_OF_DAY: getValue(row, 'TIME_OF_DAY'),
+        CONN_BY: getValue(row, 'CONN_BY'),
+        COUNT: parseInt(getValue(row, 'COUNT')) || 0,
+        LOAD: parseFloat(getValue(row, 'LOAD')) || 0,
+        SD_LAKH: parseFloat(getValue(row, 'SD_LAKH')) || 0,
+        OSD_LAKH: parseFloat(getValue(row, 'OSD_LAKH')) || 0
+      };
+    });
     setCache(CACHE_KEYS.CONSUMERS, data);
     return data;
   } catch (error) {
