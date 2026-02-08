@@ -9,6 +9,7 @@ import AuditLog from './components/AuditLog';
 import ConsumersReport from './components/ConsumersReport';
 import ReportsList from './components/ReportCatalog';
 import DocketReport from './components/DocketReport';
+import CollectionReport from './components/CollectionReport';
 import { fetchUsersFromSheet, logAudit } from './services/googleSheetsService';
 
 const App: React.FC = () => {
@@ -161,6 +162,7 @@ const App: React.FC = () => {
               {selectedReportId === 'REP_AUDIT_LOG' && <AuditLog user={user} />}
               {selectedReportId === 'REP_CONSUMERS_SUMMARY' && <ConsumersReport user={user} />}
               {selectedReportId === 'REP_DOCKET_MONITORING' && <DocketReport user={user} />}
+              {selectedReportId === 'REP_COLLECTION_ANALYSIS' && <CollectionReport user={user} />}
               {selectedReportId.startsWith('REP_MOCK') && (
                 <div className="p-20 text-center space-y-4">
                   <div className="text-4xl text-blue-500"><i className="fa-solid fa-screwdriver-wrench"></i></div>

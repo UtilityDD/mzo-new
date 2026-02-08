@@ -27,6 +27,14 @@ export const REPORT_CATALOG: ReportDefinition[] = [
     minRole: UserRole.CCC
   },
   {
+    id: 'REP_COLLECTION_ANALYSIS',
+    name: 'Collection Analysis',
+    description: 'Hierarchical breakdown of revenue collection across different timeframes.',
+    category: 'Commercial',
+    icon: 'fa-indian-rupee-sign',
+    minRole: UserRole.CCC
+  },
+  {
     id: 'REP_AUDIT_LOG',
     name: 'System Audit Log',
     description: 'Track user access and critical system activities.',

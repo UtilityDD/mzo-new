@@ -1,7 +1,7 @@
 
-import { ReportData, User, UserRole, HierarchyFilter, PendingNSCData, ConsumerData, DocketData } from '../types';
+import { ReportData, User, UserRole, HierarchyFilter, PendingNSCData, ConsumerData, DocketData, CollectionData } from '../types';
 import { MOCK_REPORT_DATA } from '../constants';
-import { fetchReportsFromSheet, fetchPendingNSCFromSheet, fetchConsumersFromSheet, fetchDocketDataFromSheet } from './googleSheetsService';
+import { fetchReportsFromSheet, fetchPendingNSCFromSheet, fetchConsumersFromSheet, fetchDocketDataFromSheet, fetchCollectionDataFromSheet } from './googleSheetsService';
 
 /**
  * Enforces Mandatory Hierarchy Logic
@@ -176,4 +176,74 @@ export const calculateKPIs = (data: ReportData[]) => {
     { label: 'Active Users', value: totalCustomers.toLocaleString(), trend: 8, icon: 'fa-users', color: 'bg-orange-500' },
     { label: 'Efficiency', value: `${avgEfficiency.toFixed(1)}%`, trend: 2, icon: 'fa-bolt', color: 'bg-purple-500' }
   ];
+};
+
+export const fetchCollectionData = async (user: User, filters: HierarchyFilter): Promise<CollectionData[]> => {
+  const allData = await fetchCollectionDataFromSheet();
+
+  return allData.filter(row => {
+    if (!applyHierarchyRestriction(row, user)) return false;
+
+    if (filters.zone && row.zone_code !== filters.zone) return false;
+    if (filters.region && row.region_code !== filters.region) return false;
+    if (filters.division && row.division_code !== filters.division) return false;
+    if (filters.ccc && row.ccc_code !== filters.ccc) return false;
+
+    return true;
+  });
+};
+
+export const processCollectionAggregates = (data: CollectionData[]) => {
+  const daily: Record<string, { count: number, amount: number }> = {};
+  const weekly: Record<string, { count: number, amount: number }> = {};
+  const monthly: Record<string, { count: number, amount: number }> = {};
+  const fy: Record<string, { count: number, amount: number }> = {};
+
+  data.forEach(item => {
+    // Payment Date Parse: YYYYMMDD
+    const y = item.PAYMENT_DT.substring(0, 4);
+    const m = item.PAYMENT_DT.substring(4, 6);
+    const d = item.PAYMENT_DT.substring(6, 8);
+    const dateObj = new Date(`${y}-${m}-${d}`);
+
+    if (isNaN(dateObj.getTime())) return;
+
+    const dayKey = `${y}-${m}-${d}`;
+    const monthKey = `${y}-${m}`;
+
+    // FY Logic: Apr-Mar
+    const year = parseInt(y);
+    const month = parseInt(m);
+    const fyKey = month >= 4 ? `FY ${year}-${year + 1}` : `FY ${year - 1}-${year}`;
+
+    // Simple Weekly (ISO week approximation or just by day/7)
+    const firstDayOfYear = new Date(dateObj.getFullYear(), 0, 1);
+    const pastDaysOfYear = (dateObj.getTime() - firstDayOfYear.getTime()) / 86400000;
+    const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+    const weekKey = `${y}-W${weekNumber}`;
+
+    // Aggregates
+    [
+      { res: daily, key: dayKey },
+      { res: weekly, key: weekKey },
+      { res: monthly, key: monthKey },
+      { res: fy, key: fyKey }
+    ].forEach(({ res, key }) => {
+      if (!res[key]) res[key] = { count: 0, amount: 0 };
+      res[key].count += item.COUNT;
+      res[key].amount += item.AMOUNT_PAID;
+    });
+  });
+
+  const sortAndMap = (obj: Record<string, any>) =>
+    Object.entries(obj)
+      .map(([key, val]) => ({ key, ...val }))
+      .sort((a, b) => a.key.localeCompare(b.key));
+
+  return {
+    dailyCount: sortAndMap(daily),
+    weeklyCount: sortAndMap(weekly),
+    monthlyCount: sortAndMap(monthly),
+    fyCount: sortAndMap(fy)
+  };
 };

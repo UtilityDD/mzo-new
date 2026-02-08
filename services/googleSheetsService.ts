@@ -1,10 +1,11 @@
 
-import { User, UserRole, ReportData, PendingNSCData, AuditEntry, ConsumerData, DocketData } from '../types';
+import { User, UserRole, ReportData, PendingNSCData, AuditEntry, ConsumerData, DocketData, CollectionData } from '../types';
 
 const USERS_SHEET_ID = '1rWw9wrbuAduKThCd4tRLzfpULWedyGmQNnHeAmUQSR4';
 const NSC_SHEET_ID = '1jP1fPkntRCuUL7YNRrcrvB-Mm_c-5etcMEPa_1nQm40';
 const CONSUMERS_SHEET_ID = '1_56xJru04Y_Hv4yybMZ79XUmNAajcF8OV-hSISUDR00';
 const DOCKET_SHEET_ID = '1FcCzii1tB66sbw9AXrOd-rW3i-IsZVjG4Hhb2Jtev5c';
+const COLLECTION_SHEET_ID = 'PLACEHOLDER_COLLECTION_SHEET_ID'; // Awaiting User Input
 
 // Web App URL for writing data back to Google Sheets
 const LOGS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbz_Placeholder_URL/exec';
@@ -275,6 +276,30 @@ export const fetchDocketDataFromSheet = async (): Promise<DocketData[]> => {
     }));
   } catch (error) {
     console.error('Error fetching Docket Data:', error);
+    return [];
+  }
+};
+
+export const fetchCollectionDataFromSheet = async (): Promise<CollectionData[]> => {
+  try {
+    const response = await fetch(getExportUrl(COLLECTION_SHEET_ID, '0'));
+    if (!response.ok) throw new Error('Failed to fetch Collection sheet');
+    const csvData = await response.text();
+    const rawData = parseCSV(csvData);
+
+    return rawData.map(row => ({
+      date: getValue(row, 'date'),
+      zone_code: getValue(row, 'zone_code'),
+      region_code: getValue(row, 'region_code'),
+      division_code: getValue(row, 'division_code'),
+      PAYMENT_DT: String(getValue(row, 'PAYMENT_DT')),
+      ccc_code: getValue(row, 'ccc_code'),
+      MODE: getValue(row, 'MODE'),
+      COUNT: parseInt(getValue(row, 'COUNT')) || 0,
+      AMOUNT_PAID: parseFloat(getValue(row, 'AMOUNT PAID')) || parseFloat(getValue(row, 'AMOUNT_PAID')) || 0
+    }));
+  } catch (error) {
+    console.error('Error fetching Collection Data:', error);
     return [];
   }
 };

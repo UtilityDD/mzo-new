@@ -119,6 +119,18 @@ export interface DocketData {
   doc_crn_dt: string;
 }
 
+export interface CollectionData {
+  date: string;
+  zone_code: string;
+  region_code: string;
+  division_code: string;
+  PAYMENT_DT: string; // YYYYMMDD
+  ccc_code: string;
+  MODE: string;
+  COUNT: number;
+  AMOUNT_PAID: number;
+}
+
 export interface HierarchyFilter {
   zone?: string;
   region?: string;
