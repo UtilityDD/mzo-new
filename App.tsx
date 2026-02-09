@@ -163,69 +163,8 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-72 bg-white border-r border-gray-100 h-screen sticky top-0 z-50">
-        <div className="p-8">
-          <div className="flex items-center gap-4 mb-10">
-            <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-xl android-shadow">
-              <i className="fa-solid fa-chart-line"></i>
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-gray-900 tracking-tighter leading-none">MZO</h1>
-              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Intelligence</p>
-            </div>
-          </div>
-
-          <nav className="space-y-2">
-            <button
-              onClick={() => { setActiveTab('home'); setSelectedReportId(null); }}
-              className={`w-full text-left px-4 py-4 rounded-2xl flex items-center gap-4 transition-all group ${activeTab === 'home' ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}
-            >
-              <i className={`fa-solid fa-house-chimney text-lg ${activeTab === 'home' ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}`}></i>
-              <span className="font-bold text-sm">Dashboard</span>
-            </button>
-
-            <button
-              onClick={() => { setActiveTab('reports'); setSelectedReportId(null); }}
-              className={`w-full text-left px-4 py-4 rounded-2xl flex items-center gap-4 transition-all group ${activeTab === 'reports' ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}
-            >
-              <i className={`fa-solid fa-chart-pie text-lg ${activeTab === 'reports' ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}`}></i>
-              <span className="font-bold text-sm">Reports Catalog</span>
-            </button>
-
-            <button
-              onClick={() => { setActiveTab('profile'); setSelectedReportId(null); }}
-              className={`w-full text-left px-4 py-4 rounded-2xl flex items-center gap-4 transition-all group ${activeTab === 'profile' ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}
-            >
-              <i className={`fa-solid fa-circle-user text-lg ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}`}></i>
-              <span className="font-bold text-sm">My Profile</span>
-            </button>
-          </nav>
-        </div>
-
-        <div className="mt-auto p-8 border-t border-gray-50">
-          <div className="bg-gray-50 p-4 rounded-3xl flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 font-black border border-gray-100 uppercase">
-              {user.full_name.charAt(0)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-black text-gray-900 truncate">{user.full_name}</p>
-              <p className="text-[10px] font-bold text-gray-400 truncate uppercase">{user.role}</p>
-            </div>
-          </div>
-
-          <button
-            onClick={logout}
-            className="w-full py-3 text-xs font-black text-rose-500 uppercase tracking-widest hover:bg-rose-50 rounded-xl transition-colors text-left px-4 flex items-center gap-3"
-          >
-            <i className="fa-solid fa-power-off"></i>
-            Sign Out
-          </button>
-        </div>
-      </aside>
-
-      <main className="flex-1 overflow-y-auto h-screen pb-24 lg:pb-0">
+    <div className="min-h-screen bg-gray-50 flex flex-col pb-20">
+      <main className="flex-1 overflow-y-auto">
 
         {activeTab === 'home' && <Dashboard user={user} onNavigateToReport={(id) => {
           setSelectedReportId(id);
@@ -234,17 +173,7 @@ const App: React.FC = () => {
 
         {activeTab === 'reports' && (
           selectedReportId ? (
-            <div className="relative h-full animate-in fade-in slide-in-from-right-4 duration-300">
-              {/* Desktop Back Button for Reports */}
-              <div className="hidden lg:flex items-center gap-2 p-6 pb-0">
-                <button
-                  onClick={() => setSelectedReportId(null)}
-                  className="flex items-center gap-2 text-gray-400 hover:text-blue-600 transition-colors"
-                >
-                  <i className="fa-solid fa-arrow-left"></i>
-                  <span className="text-xs font-bold uppercase tracking-widest">Back to Catalog</span>
-                </button>
-              </div>
+            <div className="relative h-full">
               {selectedReportId === 'REP_PENDING_NSC' && <PendingNSCReport user={user} />}
               {selectedReportId === 'REP_REVENUE_SUMMARY' && <HistoricalReport user={user} />}
               {selectedReportId === 'REP_AUDIT_LOG' && <AuditLog user={user} />}
@@ -265,8 +194,8 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'profile' && (
-          <div className="p-6 space-y-6 max-w-lg mx-auto fade-in h-full flex items-center justify-center">
-            <div className="glass-card p-8 rounded-[40px] text-center space-y-5 premium-shadow w-full">
+          <div className="p-6 space-y-6 max-w-lg mx-auto fade-in">
+            <div className="glass-card p-8 rounded-[40px] text-center space-y-5 premium-shadow">
               <div className="relative inline-block">
                 <div className="w-24 h-24 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full mx-auto flex items-center justify-center text-4xl text-white border-4 border-white premium-shadow">
                   <i className="fa-solid fa-user-tie"></i>
@@ -297,17 +226,20 @@ const App: React.FC = () => {
 
               <button
                 onClick={logout}
-                className="w-full mt-6 py-4 rounded-2xl bg-rose-50 text-rose-600 font-extrabold text-sm uppercase tracking-widest active:bg-rose-100 transition-all border border-rose-100 md:hidden"
+                className="w-full mt-6 py-4 rounded-2xl bg-rose-50 text-rose-600 font-extrabold text-sm uppercase tracking-widest active:bg-rose-100 transition-all border border-rose-100"
               >
                 End Session
               </button>
             </div>
+
+            <p className="text-center text-[9px] font-extrabold text-gray-300 uppercase tracking-[0.3em]">
+              MZO Intelligence &copy; 2025
+            </p>
           </div>
         )}
       </main>
 
-      {/* Mobile Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 glass border-t border-gray-100 px-8 py-3 safe-area-bottom flex justify-between items-center z-40 lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 glass border-t border-gray-100 px-8 py-3 safe-area-bottom flex justify-between items-center z-40">
         <button
           onClick={() => { setActiveTab('home'); setSelectedReportId(null); }}
           className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'home' ? 'text-blue-600 scale-110' : 'text-gray-400'}`}
