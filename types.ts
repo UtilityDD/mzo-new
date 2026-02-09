@@ -160,6 +160,8 @@ export interface HierarchyFilter {
   suppOffloadWatts?: string[];
   appliedPhase?: string[];
   noOfPoles?: string[];
+  cccNames?: string[];
+  regionNames?: string[];
   // Consumer specific
   connStat?: string[];
   baseClass?: string[];

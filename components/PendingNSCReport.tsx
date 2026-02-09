@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, PendingNSCData, HierarchyFilter, KPIData } from '../types';
-import { fetchNSCData, calculateNSCKPIs } from '../services/dataService';
+import { fetchNSCData, calculateNSCKPIs, formatDelay } from '../services/dataService';
+import { fetchOfficeMapping } from '../services/googleSheetsService';
 
 interface PendingNSCReportProps {
    user: User;
@@ -14,16 +15,21 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
    const [loading, setLoading] = useState(true);
    const [filters, setFilters] = useState<HierarchyFilter>({});
    const [expandedId, setExpandedId] = useState<string | null>(null);
-   const [viewMode, setViewMode] = useState<'list' | 'summary'>('summary');
+   const [viewMode, setViewMode] = useState<'list' | 'summary' | 'stats'>('summary');
    const [showFilterPage, setShowFilterPage] = useState(false);
    const [drillDownRow, setDrillDownRow] = useState<{ key: keyof PendingNSCData; label: string } | null>(null);
+   const [officeMap, setOfficeMap] = useState<Record<string, string>>({});
+   const [prevViewMode, setPrevViewMode] = useState<'summary' | 'stats'>('summary');
 
    useEffect(() => {
       const load = async () => {
-         setLoading(true);
-         const res = await fetchNSCData(user, filters);
-         setData(res);
-         setKpis(calculateNSCKPIs(res));
+         const [nscRes, map] = await Promise.all([
+            fetchNSCData(user, filters),
+            fetchOfficeMapping()
+         ]);
+         setData(nscRes);
+         setOfficeMap(map);
+         setKpis(calculateNSCKPIs(nscRes));
          setLoading(false);
       };
       load();
@@ -79,44 +85,51 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
       return summaryList.sort((a, b) => b.avgDelay - a.avgDelay);
    };
 
+   const resolveName = (code: string) => {
+      const formatValue = (val: string) => val.replace(/^(Z-|R-|D-|CCC-)/i, '').trim();
+      const rawName = officeMap[code] || code || '';
+      return formatValue(String(rawName));
+   };
+
    // Determine authorized office name from profile or data
    const getOfficeName = () => {
-      const formatValue = (val: string) => val.replace(/^(Z-|R-|D-|CCC-)/i, '').trim();
-
-      // Strict priority: user.office_name is the descriptive source of truth from user sheet
-      let displayName = user.office_name;
-
-      if (!displayName && data.length > 0) {
-         const row = data[0];
-         switch (user.role) {
-            case UserRole.CCC: displayName = row.SUPP_OFF; break;
-            case UserRole.DIVISION: displayName = row.DIVN_NAME; break;
-            case UserRole.REGION: displayName = row.REGION; break;
-         }
-      }
-
-      if (!displayName) {
-         displayName = user.ccc_code || user.division_code || user.region_code || user.zone_code || "Enterprise";
-      }
-
-      const cleanValue = formatValue(displayName);
+      const name = resolveName(user.ccc_code || user.division_code || user.region_code || user.zone_code || '');
+      if (!name || name === '') return "Enterprise View";
 
       switch (user.role) {
-         case UserRole.CCC: return `${cleanValue} CCC`;
-         case UserRole.DIVISION: return `${cleanValue} Division`;
-         case UserRole.REGION: return `${cleanValue} Region`;
-         case UserRole.ZONE: return `${cleanValue} Zone`;
-         default: return cleanValue;
+         case UserRole.CCC: return `${name} CCC`;
+         case UserRole.DIVISION: return `${name} Division`;
+         case UserRole.REGION: return `${name} Region`;
+         case UserRole.ZONE: return `${name} Zone`;
+         default: return name;
       }
    };
 
-   const SummaryTable = ({ title, icon, data, onRowClick }: { title: string; icon: string; data: any[]; onRowClick?: (label: string) => void }) => (
+
+
+   const getActiveFilterLabels = () => {
+      const labels: string[] = [];
+      if (filters.regionCodes?.length) labels.push(`${filters.regionCodes.map(c => resolveName(c)).join(', ')}`);
+      if (filters.divisionCodes?.length) labels.push(`${filters.divisionCodes.map(c => resolveName(c)).join(', ')}`);
+      if (filters.cccCodes?.length) labels.push(`${filters.cccCodes.map(c => resolveName(c)).join(', ')}`);
+      if (filters.searchQuery) labels.push(`"${filters.searchQuery}"`);
+      return labels.length > 0 ? labels.join(' • ') : null;
+   };
+
+   const SummaryTable = ({ title, icon, data, onRowClick, total, activeFilters }: { title: string; icon: string; data: any[]; onRowClick?: (label: string) => void; total?: number; activeFilters?: string | null }) => (
       <div className="bg-white rounded-[32px] android-shadow border border-gray-100 overflow-hidden fade-in mb-6">
-         <div className="px-6 py-5 bg-gray-50/50 border-b border-gray-50 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
-               <i className={`fa-solid ${icon} text-xs`}></i>
+         <div className="px-6 py-5 bg-gray-50/50 border-b border-gray-50 flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+               <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                  <i className={`fa-solid ${icon} text-xs`}></i>
+               </div>
+               <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">{title}</h3>
             </div>
-            <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">{title}</h3>
+            {activeFilters && (
+               <p className="text-[9px] text-gray-400 font-bold italic truncate ml-11 opacity-70">
+                  Showing results for: {activeFilters}
+               </p>
+            )}
          </div>
          <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -141,16 +154,36 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
                            </div>
                         </td>
                         <td className="px-6 py-4 text-center">
-                           <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-[10px] font-black border border-blue-100">{item.count}</span>
+                           <div className="flex flex-col items-center gap-0.5">
+                              <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-[10px] font-black border border-blue-100">{item.count}</span>
+                              {total && total > 0 && (
+                                 <span className="text-[8px] font-bold text-gray-400 opacity-60">
+                                    {((item.count / total) * 100).toFixed(1)}%
+                                 </span>
+                              )}
+                           </div>
                         </td>
                         <td className="px-6 py-4 text-right">
                            <span className={`text-xs font-black ${item.avgDelay > 15 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                              {item.avgDelay.toFixed(1)}d
+                              {formatDelay(item.avgDelay)}
                            </span>
                         </td>
                      </tr>
                   ))}
                </tbody>
+               <tfoot>
+                  <tr className="bg-blue-50/30 border-t-2 border-blue-100/50">
+                     <td className="px-6 py-4 text-[10px] font-black text-blue-900 uppercase tracking-widest">Total Summary</td>
+                     <td className="px-6 py-4 text-center font-black text-blue-900 text-xs">
+                        {data.reduce((sum, item) => sum + item.count, 0).toLocaleString()}
+                     </td>
+                     <td className="px-6 py-4 text-right">
+                        <span className="bg-blue-600 text-white px-3 py-1 rounded-lg text-[10px] font-black shadow-sm">
+                           {formatDelay(data.reduce((sum, item) => sum + (item.avgDelay * item.count), 0) / (data.reduce((sum, item) => sum + item.count, 0) || 1))} Avg
+                        </span>
+                     </td>
+                  </tr>
+               </tfoot>
             </table>
          </div>
       </div>
@@ -212,18 +245,47 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
                </div>
             </div>
 
-            {/* Administrative Section */}
             <div className="space-y-4">
                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Administrative Levels</h3>
+               {user.role !== UserRole.CCC && (
+                  <div className="space-y-3">
+                     <label className="text-[9px] font-black text-blue-600 uppercase tracking-widest px-1">Division</label>
+                     <div className="flex flex-wrap gap-2">
+                        {getUniqueValues('DIVN_NAME').map(div => (
+                           <FilterButton
+                              key={div}
+                              label={div}
+                              active={filters.divnName?.includes(div) || false}
+                              onClick={() => toggleFilter('divnName', div)}
+                           />
+                        ))}
+                     </div>
+                  </div>
+               )}
+               {user.role !== UserRole.DIVISION && user.role !== UserRole.CCC && (
+                  <div className="space-y-3">
+                     <label className="text-[9px] font-black text-blue-600 uppercase tracking-widest px-1">Region</label>
+                     <div className="flex flex-wrap gap-2">
+                        {getUniqueValues('REGION').map(reg => (
+                           <FilterButton
+                              key={reg}
+                              label={reg}
+                              active={filters.regionNames?.includes(reg) || false}
+                              onClick={() => toggleFilter('regionNames', reg)}
+                           />
+                        ))}
+                     </div>
+                  </div>
+               )}
                <div className="space-y-3">
-                  <label className="text-[9px] font-black text-blue-600 uppercase tracking-widest px-1">Division</label>
+                  <label className="text-[9px] font-black text-blue-600 uppercase tracking-widest px-1">Supply Office (CCC)</label>
                   <div className="flex flex-wrap gap-2">
-                     {getUniqueValues('DIVN_NAME').map(div => (
+                     {getUniqueValues('SUPP_OFF').map(ccc => (
                         <FilterButton
-                           key={div}
-                           label={div}
-                           active={filters.divnName?.includes(div) || false}
-                           onClick={() => toggleFilter('divnName', div)}
+                           key={ccc}
+                           label={ccc}
+                           active={filters.cccNames?.includes(ccc) || false}
+                           onClick={() => toggleFilter('cccNames', ccc)}
                         />
                      ))}
                   </div>
@@ -392,7 +454,7 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
 
       const arrayFields: (keyof HierarchyFilter)[] = [
          'delayRange', 'poleNonPole', 'applicantType', 'connClass', 'woIssued', 'isDuareSarkar', 'isPortalAppl',
-         'divnName', 'suppOffloadWatts', 'appliedPhase', 'noOfPoles'
+         'divnName', 'regionNames', 'cccNames', 'suppOffloadWatts', 'appliedPhase', 'noOfPoles'
       ];
 
       arrayFields.forEach(field => {
@@ -410,7 +472,9 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
          return `${drillDownRow.label} Details`;
       }
       const parts: string[] = [];
+      if (filters.regionNames?.length) parts.push(filters.regionNames.join('/'));
       if (filters.divnName?.length) parts.push(filters.divnName.join('/'));
+      if (filters.cccNames?.length) parts.push(filters.cccNames.join('/'));
       if (filters.delayRange?.length) parts.push(filters.delayRange.join(' / '));
       if (filters.connClass?.length) parts.push(`Class ${filters.connClass.join('/')}`);
       if (filters.appliedPhase?.length) parts.push(filters.appliedPhase.join('/'));
@@ -464,13 +528,25 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
                <button
                   onClick={() => {
                      setViewMode('summary');
-                     setDrillDownRow(null);
+                     setDrillDownRow(null); // Clear drilldown when switching to summary
                   }}
                   className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'summary' ? 'bg-white text-blue-600 shadow-md scale-[1.02]' : 'text-gray-400'}`}
                >
                   <i className="fa-solid fa-chart-pie opacity-50"></i>
                   Summary
                </button>
+
+               <button
+                  onClick={() => {
+                     setViewMode('stats');
+                     setDrillDownRow(null);
+                  }}
+                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'stats' ? 'bg-white text-blue-600 shadow-md scale-[1.02]' : 'text-gray-400'}`}
+               >
+                  <i className="fa-solid fa-chart-simple opacity-50"></i>
+                  Stats
+               </button>
+
                <button
                   onClick={() => {
                      setViewMode('list');
@@ -517,7 +593,10 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
                      title="Delay Range Summary"
                      icon="fa-clock"
                      data={getSummaryData('DelayRange')}
+                     total={data.length}
+                     activeFilters={getActiveFilterLabels()}
                      onRowClick={(label) => {
+                        setPrevViewMode('summary');
                         setDrillDownRow({ key: 'DelayRange', label });
                         setViewMode('list');
                      }}
@@ -526,7 +605,10 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
                      title="Connection Class Summary"
                      icon="fa-layer-group"
                      data={getSummaryData('CONN_CLASS')}
+                     total={data.length}
+                     activeFilters={getActiveFilterLabels()}
                      onRowClick={(label) => {
+                        setPrevViewMode('summary');
                         setDrillDownRow({ key: 'CONN_CLASS', label });
                         setViewMode('list');
                      }}
@@ -535,8 +617,57 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
                      title="Connection Type Summary"
                      icon="fa-plug-circle-bolt"
                      data={getSummaryData('PoleNonPole')}
+                     total={data.length}
+                     activeFilters={getActiveFilterLabels()}
                      onRowClick={(label) => {
+                        setPrevViewMode('summary');
                         setDrillDownRow({ key: 'PoleNonPole', label });
+                        setViewMode('list');
+                     }}
+                  />
+               </div>
+            ) : viewMode === 'stats' ? (
+               <div className="space-y-2">
+                  <div className="px-2 mb-4">
+                     <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Office-wise breakdown</h4>
+                  </div>
+                  {(user.role === UserRole.ZONE || user.role === undefined) && (
+                     <SummaryTable
+                        title="Region-wise Status"
+                        icon="fa-map-location-dot"
+                        data={getSummaryData('REGION')}
+                        total={data.length}
+                        activeFilters={getActiveFilterLabels()}
+                        onRowClick={(label) => {
+                           setPrevViewMode('stats');
+                           setDrillDownRow({ key: 'REGION', label });
+                           setViewMode('list');
+                        }}
+                     />
+                  )}
+                  {(user.role === UserRole.ZONE || user.role === UserRole.REGION || user.role === undefined) && (
+                     <SummaryTable
+                        title="Division-wise Status"
+                        icon="fa-building-shield"
+                        data={getSummaryData('DIVN_NAME')}
+                        total={data.length}
+                        activeFilters={getActiveFilterLabels()}
+                        onRowClick={(label) => {
+                           setPrevViewMode('stats');
+                           setDrillDownRow({ key: 'DIVN_NAME', label });
+                           setViewMode('list');
+                        }}
+                     />
+                  )}
+                  <SummaryTable
+                     title="CCC-wise Status"
+                     icon="fa-house-signal"
+                     data={getSummaryData('SUPP_OFF')}
+                     total={data.length}
+                     activeFilters={getActiveFilterLabels()}
+                     onRowClick={(label) => {
+                        setPrevViewMode('stats');
+                        setDrillDownRow({ key: 'SUPP_OFF', label });
                         setViewMode('list');
                      }}
                   />
@@ -545,17 +676,15 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
                <div className="space-y-4">
                   <div className="flex justify-between items-center px-2">
                      <div className="flex items-center gap-3">
-                        {drillDownRow && (
-                           <button
-                              onClick={() => {
-                                 setDrillDownRow(null);
-                                 setViewMode('summary');
-                              }}
-                              className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center active:scale-90 transition-all border border-blue-100"
-                           >
-                              <i className="fa-solid fa-arrow-left text-[10px]"></i>
-                           </button>
-                        )}
+                        <button
+                           onClick={() => {
+                              setDrillDownRow(null);
+                              setViewMode(prevViewMode); // Return to previous mode (summary or stats)
+                           }}
+                           className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center active:scale-90 transition-all border border-blue-100"
+                        >
+                           <i className="fa-solid fa-arrow-left text-[10px]"></i>
+                        </button>
                         <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest leading-none">{getListTitle()}</h4>
                      </div>
                      <span className="text-[10px] font-extrabold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
@@ -593,7 +722,7 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
                               <div className="p-4 flex justify-between items-center">
                                  <div className="flex-1 pr-3">
                                     <div className="flex items-center gap-1.5 mb-1">
-                                       <span className="text-[8px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-wider border border-blue-100">{row.APPL_NO}</span>
+                                       <span className="text-[8px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-wider border border-blue-100">{row.APPL_NO}/{row.CONN_CLASS}</span>
                                        {row.IS_DUARE_SARKAR === 'Y' && <span className="text-[8px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded-md uppercase border border-orange-200">DS</span>}
                                     </div>
                                     <h3 className="text-sm font-black text-gray-900 leading-none group-hover:text-blue-600 transition-colors uppercase truncate max-w-[180px]">{row.NAME}</h3>
@@ -605,7 +734,7 @@ const PendingNSCReport: React.FC<PendingNSCReportProps> = ({ user }) => {
                                  <div className="flex items-center gap-3">
                                     <div className="text-right">
                                        <div className={`text-xs font-black px-3 py-1.5 rounded-xl inline-block ${row.DelayInSC > 15 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                          {row.DelayInSC}d
+                                          {formatDelay(row.DelayInSC)}
                                        </div>
                                     </div>
                                     <i className={`fa-solid fa-chevron-down text-[10px] text-gray-300 transition-transform ${expandedId === row.APPL_NO ? 'rotate-180 text-blue-500' : ''}`}></i>

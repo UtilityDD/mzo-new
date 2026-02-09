@@ -12,13 +12,21 @@ const DataTable: React.FC<{
    data: { name: string; count: number; share: string }[];
    total: number;
    color: string;
-}> = ({ title, data, total, color }) => (
+   activeFilters?: string | null;
+}> = ({ title, data, total, color, activeFilters }) => (
    <div className="bg-white rounded-[32px] android-shadow border border-gray-100 overflow-hidden flex flex-col scale-up">
-      <div className="px-6 py-5 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
-         <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{title}</h4>
-         <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full text-white ${color}`}>
-            {data.length} Items
-         </span>
+      <div className="px-6 py-5 bg-gray-50/50 border-b border-gray-100 flex flex-col gap-1.5">
+         <div className="flex justify-between items-center w-full">
+            <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest">{title}</h4>
+            <span className={`text-[9px] font-extrabold px-2.5 py-1 rounded-full text-white shadow-sm ${color}`}>
+               {data.length} Items
+            </span>
+         </div>
+         {activeFilters && (
+            <p className="text-[9px] text-gray-400 font-bold italic truncate opacity-70">
+               Filtered by: {activeFilters}
+            </p>
+         )}
       </div>
       <div className="overflow-x-auto">
          <table className="w-full text-left">
@@ -78,6 +86,7 @@ const ConsumersReport: React.FC<ConsumersReportProps> = ({ user }) => {
    const [filters, setFilters] = useState<HierarchyFilter>({});
    const [officeMap, setOfficeMap] = useState<Record<string, string>>({});
    const [showFilterPage, setShowFilterPage] = useState(false);
+   const [viewMode, setViewMode] = useState<'admin' | 'tech'>('admin');
 
    useEffect(() => {
       const loadOptions = async () => {
@@ -134,6 +143,25 @@ const ConsumersReport: React.FC<ConsumersReportProps> = ({ user }) => {
       return Array.from(unique.entries()).map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
    };
 
+   const getActiveFilterLabels = () => {
+      const labels: string[] = [];
+      if (filters.regionCodes?.length) labels.push(`${filters.regionCodes.map(c => resolveName(c)).join(', ')}`);
+      if (filters.divisionCodes?.length) labels.push(`${filters.divisionCodes.map(c => resolveName(c)).join(', ')}`);
+      if (filters.cccCodes?.length) labels.push(`${filters.cccCodes.map(c => resolveName(c)).join(', ')}`);
+
+      if (filters.connStat?.length) labels.push(`Status: ${filters.connStat.join(', ')}`);
+      if (filters.baseClass?.length) labels.push(`Class: ${filters.baseClass.join(', ')}`);
+      if (filters.category?.length) labels.push(`Cat: ${filters.category.join(', ')}`);
+      if (filters.meterType?.length) labels.push(`Meter: ${filters.meterType.join(', ')}`);
+      if (filters.connPhase?.length) labels.push(`Phase: ${filters.connPhase.join(', ')}`);
+      if (filters.govtStat?.length) labels.push(`Govt: ${filters.govtStat.join(', ')}`);
+      if (filters.connBy?.length) labels.push(`Source: ${filters.connBy.join(', ')}`);
+
+      if (filters.searchQuery) labels.push(`"${filters.searchQuery}"`);
+
+      return labels.length > 0 ? labels.join(' • ') : null;
+   };
+
    const toggleFilter = (key: keyof HierarchyFilter, value: string) => {
       setFilters(prev => {
          const current = (prev[key] as string[]) || [];
@@ -142,6 +170,19 @@ const ConsumersReport: React.FC<ConsumersReportProps> = ({ user }) => {
             : [...current, value];
          return { ...prev, [key]: updated };
       });
+   };
+
+   const getActiveFilterCount = () => {
+      let count = 0;
+      if (filters.searchQuery) count++;
+      const fields: (keyof HierarchyFilter)[] = [
+         'regionCodes', 'divisionCodes', 'cccCodes', 'connStat', 'baseClass', 'category', 'meterType', 'connPhase', 'govtStat', 'connBy'
+      ];
+      fields.forEach(f => {
+         const val = filters[f];
+         if (Array.isArray(val)) count += val.length;
+      });
+      return count;
    };
 
    const FilterButton = ({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) => (
@@ -383,9 +424,14 @@ const ConsumersReport: React.FC<ConsumersReportProps> = ({ user }) => {
                </div>
                <button
                   onClick={() => setShowFilterPage(true)}
-                  className="w-12 h-12 rounded-2xl bg-white border border-gray-100 android-shadow flex items-center justify-center text-gray-400 hover:text-blue-600 transition-all active:scale-90"
+                  className="relative w-12 h-12 rounded-2xl bg-white border border-gray-100 android-shadow flex items-center justify-center text-gray-400 hover:text-blue-600 transition-all active:scale-90"
                >
                   <i className="fa-solid fa-sliders text-lg"></i>
+                  {getActiveFilterCount() > 0 && (
+                     <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center border-2 border-white ring-2 ring-blue-50">
+                        {getActiveFilterCount()}
+                     </span>
+                  )}
                </button>
             </div>
          </div>
@@ -413,35 +459,53 @@ const ConsumersReport: React.FC<ConsumersReportProps> = ({ user }) => {
                )}
             </div>
 
-            {/* Administrative Distribution */}
-            <section>
-               <div className="flex items-center gap-3 mb-6 px-2">
-                  <div className="h-1 w-8 bg-blue-600 rounded-full"></div>
-                  <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Administrative Breakdown</h3>
-               </div>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {loading ? [1, 2, 3, 4].map(i => <div key={i} className="h-80 skeleton rounded-[32px]"></div>) :
-                     aggregate.admin.map((section, idx) => (
-                        <DataTable key={idx} {...section} />
-                     ))
-                  }
-               </div>
-            </section>
+            {/* View Toggle */}
+            <div className="flex bg-gray-100/80 backdrop-blur p-1 rounded-2xl border border-gray-100">
+               <button
+                  onClick={() => setViewMode('admin')}
+                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'admin' ? 'bg-white text-blue-600 shadow-md scale-[1.02]' : 'text-gray-400'}`}
+               >
+                  <i className="fa-solid fa-sitemap opacity-50"></i>
+                  Administrative
+               </button>
+               <button
+                  onClick={() => setViewMode('tech')}
+                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'tech' ? 'bg-white text-blue-600 shadow-md scale-[1.02]' : 'text-gray-400'}`}
+               >
+                  <i className="fa-solid fa-microchip opacity-50"></i>
+                  Technical
+               </button>
+            </div>
 
-            {/* Technical Distribution */}
-            <section className="pb-20">
-               <div className="flex items-center gap-3 mb-6 px-2">
-                  <div className="h-1 w-8 bg-emerald-500 rounded-full"></div>
-                  <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Technical Analysis</h3>
-               </div>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {loading ? [1, 2, 3, 4].map(i => <div key={i} className="h-80 skeleton rounded-[32px]"></div>) :
-                     aggregate.tech.map((section, idx) => (
-                        <DataTable key={idx} {...section} />
-                     ))
-                  }
-               </div>
-            </section>
+            {viewMode === 'admin' ? (
+               <section className="fade-in">
+                  <div className="flex items-center gap-3 mb-6 px-2">
+                     <div className="h-1 w-8 bg-blue-600 rounded-full"></div>
+                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Administrative Breakdown</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
+                     {loading ? [1, 2, 3, 4].map(i => <div key={i} className="h-80 skeleton rounded-[32px]"></div>) :
+                        aggregate.admin.map((section, idx) => (
+                           <DataTable key={idx} {...section} activeFilters={getActiveFilterLabels()} />
+                        ))
+                     }
+                  </div>
+               </section>
+            ) : (
+               <section className="pb-20 fade-in">
+                  <div className="flex items-center gap-3 mb-6 px-2">
+                     <div className="h-1 w-8 bg-emerald-500 rounded-full"></div>
+                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Technical Analysis</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     {loading ? [1, 2, 3, 4].map(i => <div key={i} className="h-80 skeleton rounded-[32px]"></div>) :
+                        aggregate.tech.map((section, idx) => (
+                           <DataTable key={idx} {...section} activeFilters={getActiveFilterLabels()} />
+                        ))
+                     }
+                  </div>
+               </section>
+            )}
          </div>
       </div>
    );

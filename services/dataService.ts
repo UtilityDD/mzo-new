@@ -41,6 +41,8 @@ export const fetchNSCData = async (user: User, filters: HierarchyFilter): Promis
     if (filters.isPortalAppl && filters.isPortalAppl.length > 0 && !filters.isPortalAppl.includes(row.IS_PORTAL_APPL)) return false;
     if (filters.woIssued && filters.woIssued.length > 0 && !filters.woIssued.includes(row.WO_ISSUED || '')) return false;
     if (filters.divnName && filters.divnName.length > 0 && !filters.divnName.includes(row.DIVN_NAME)) return false;
+    if (filters.regionNames && filters.regionNames.length > 0 && !filters.regionNames.includes(row.REGION)) return false;
+    if (filters.cccNames && filters.cccNames.length > 0 && !filters.cccNames.includes(row.SUPP_OFF)) return false;
     if (filters.suppOffloadWatts && filters.suppOffloadWatts.length > 0 && !filters.suppOffloadWatts.includes(String(row.SUPP_OFFLOAD_WATTS))) return false;
     if (filters.appliedPhase && filters.appliedPhase.length > 0 && !filters.appliedPhase.includes(row.APPLIED_PHASE || '')) return false;
     if (filters.noOfPoles && filters.noOfPoles.length > 0 && !filters.noOfPoles.includes(String(row.NO_OF_POLES))) return false;
@@ -123,6 +125,12 @@ export const fetchDocketData = async (user: User, filters: HierarchyFilter): Pro
     if (filters.division && row.division_code !== filters.division) return false;
     if (filters.ccc && row.ccc_code !== filters.ccc) return false;
 
+    // Advanced Multi-select Filters
+    if (filters.regionCodes?.length && !filters.regionCodes.includes(row.region_code)) return false;
+    if (filters.divisionCodes?.length && !filters.divisionCodes.includes(row.division_code)) return false;
+    if (filters.cccCodes?.length && !filters.cccCodes.includes(row.ccc_code)) return false;
+    if (filters.connStat?.length && !filters.connStat.includes(row.prob_type)) return false;
+
     if (filters.searchQuery) {
       const q = filters.searchQuery.toLowerCase();
       const match =
@@ -157,6 +165,22 @@ export const calculateDocketKPIs = (data: DocketData[]) => {
   ];
 };
 
+export const formatDelay = (days: number) => {
+  const d = Math.round(days);
+  if (d === 0) return '0d';
+
+  const years = Math.floor(d / 365);
+  const months = Math.floor((d % 365) / 30);
+  const remainingDays = d % 30;
+
+  let result = '';
+  if (years > 0) result += `${years}y `;
+  if (months > 0) result += `${months}m `;
+  if (remainingDays > 0 || result === '') result += `${remainingDays}d`;
+
+  return result.trim();
+};
+
 export const calculateNSCKPIs = (data: PendingNSCData[]) => {
   const totalPending = data.length;
   const avgDelaySC = totalPending > 0 ? data.reduce((s, r) => s + r.DelayInSC, 0) / totalPending : 0;
@@ -165,9 +189,9 @@ export const calculateNSCKPIs = (data: PendingNSCData[]) => {
 
   return [
     { label: 'Total Pending', value: totalPending.toLocaleString(), trend: 0, icon: 'fa-hourglass-half', color: 'bg-rose-500' },
-    { label: 'Avg SC Delay', value: `${avgDelaySC.toFixed(1)} Days`, trend: 0, icon: 'fa-clock', color: 'bg-orange-500' },
-    { label: 'Avg WO Delay', value: `${avgDelayWO.toFixed(1)} Days`, trend: 0, icon: 'fa-briefcase', color: 'bg-blue-500' },
-    { label: 'Avg Qtn Delay', value: `${avgDelayQtn.toFixed(1)} Days`, trend: 0, icon: 'fa-file-invoice-dollar', color: 'bg-indigo-500' }
+    { label: 'Avg SC Delay', value: formatDelay(avgDelaySC), trend: 0, icon: 'fa-clock', color: 'bg-orange-500' },
+    { label: 'Avg WO Delay', value: formatDelay(avgDelayWO), trend: 0, icon: 'fa-briefcase', color: 'bg-blue-500' },
+    { label: 'Avg Qtn Delay', value: formatDelay(avgDelayQtn), trend: 0, icon: 'fa-file-invoice-dollar', color: 'bg-indigo-500' }
   ];
 };
 
@@ -212,6 +236,12 @@ export const fetchCollectionData = async (user: User, filters: HierarchyFilter):
     if (filters.region && row.region_code !== filters.region) return false;
     if (filters.division && row.division_code !== filters.division) return false;
     if (filters.ccc && row.ccc_code !== filters.ccc) return false;
+
+    // Advanced Multi-select Filters
+    if (filters.regionCodes?.length && !filters.regionCodes.includes(row.region_code)) return false;
+    if (filters.divisionCodes?.length && !filters.divisionCodes.includes(row.division_code)) return false;
+    if (filters.cccCodes?.length && !filters.cccCodes.includes(row.ccc_code)) return false;
+    if (filters.connStat?.length && !filters.connStat.includes(row.MODE)) return false;
 
     return true;
   });
